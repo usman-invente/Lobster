@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { OffloadRecord } from '../types';
 import { Plus, FileText } from 'lucide-react';
+import axios from '../lib/axios';
 
 export function OffloadManagement() {
   const { currentUser, offloadRecords, addOffloadRecord } = useData();
@@ -23,7 +24,7 @@ export function OffloadManagement() {
     sizeE: 0,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
 
@@ -39,6 +40,18 @@ export function OffloadManagement() {
       createdBy: currentUser.id,
       createdAt: new Date().toISOString(),
     };
+
+    // Send data to API using axios
+    try {
+      await axios.post('/api/offload-records', {
+        ...formData,
+        totalKgAlive,
+        deadOnTanks: 0,
+        rottenOnTanks: 0,
+      });
+    } catch (error) {
+      console.error('Error creating offload record:', error);
+    }
 
     addOffloadRecord(record);
     setShowForm(false);

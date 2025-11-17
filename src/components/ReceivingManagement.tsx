@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { ReceivingBatch, CrateLineItem, SizeCategory } from '../types';
 import { Plus, Trash2, Package } from 'lucide-react';
+import axios from '../lib/axios';
 
 export function ReceivingManagement() {
   const { currentUser, offloadRecords, receivingBatches, addReceivingBatch, getAvailableCrates } = useData();
@@ -38,7 +39,7 @@ export function ReceivingManagement() {
     setLineItems(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || lineItems.length === 0) return;
 
@@ -64,6 +65,17 @@ export function ReceivingManagement() {
       createdBy: currentUser.id,
       createdAt: new Date().toISOString(),
     }));
+
+    // Send data to API using axios
+    try {
+      await axios.post('/api/receiving-batches', {
+        date,
+        batchNumber,
+        crates: lineItems,
+      });
+    } catch (error) {
+      console.error('Error creating receiving batch:', error);
+    }
 
     addReceivingBatch(batch, crates);
     setShowForm(false);

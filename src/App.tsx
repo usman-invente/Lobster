@@ -10,6 +10,7 @@ import { DispatchManagement } from './components/DispatchManagement';
 import { ReportsView } from './components/ReportsView';
 import { LossAdjustment } from './components/LossAdjustment';
 import { SettingsView } from './components/SettingsView';
+import { authService } from './services/authService';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -40,20 +41,27 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState('');
 
   const handleLogin = (username: string, password: string) => {
-    // TODO: Replace with actual authentication logic
-    // For now, accept any non-empty credentials
+    // Authentication is handled in Login component via authService
+    // This callback is called after successful API login
     if (username && password) {
       setIsAuthenticated(true);
       setCurrentUser(username);
-    } else {
-      alert('Invalid credentials');
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentUser('');
-    setCurrentPage('dashboard');
+  const handleLogout = async () => {
+    try {
+      // Call Laravel Sanctum logout API
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local state regardless of API call result
+      setIsAuthenticated(false);
+      setCurrentUser('');
+      setCurrentPage('dashboard');
+      localStorage.removeItem('user');
+    }
   };
 
   // Show login screen if not authenticated

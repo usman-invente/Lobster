@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { Dispatch, DispatchLineItem, SizeCategory } from '../types';
 import { Send, Plus, Trash2 } from 'lucide-react';
+import axios from '../lib/axios';
 
 export function DispatchManagement() {
   const { currentUser, dispatches, getAllTankStock, addDispatch } = useData();
@@ -56,7 +57,7 @@ export function DispatchManagement() {
     return summary;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || selectedItems.length === 0) return;
 
@@ -79,6 +80,25 @@ export function DispatchManagement() {
       createdBy: currentUser.id,
       createdAt: new Date().toISOString(),
     };
+
+    // Send data to API using axios
+    try {
+      await axios.post('/api/dispatches', {
+        type: dispatchType,
+        clientAwb,
+        dispatchDate,
+        lineItems: selectedItems,
+        totalKg,
+        sizeU: summary.U,
+        sizeA: summary.A,
+        sizeB: summary.B,
+        sizeC: summary.C,
+        sizeD: summary.D,
+        sizeE: summary.E,
+      });
+    } catch (error) {
+      console.error('Error creating dispatch:', error);
+    }
 
     addDispatch(dispatch);
     setShowForm(false);

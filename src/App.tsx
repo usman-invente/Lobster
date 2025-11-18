@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { DataProvider } from './context/DataContext';
+import { DataProvider, useData } from './context/DataContext';
 import { Login } from './components/Login';
+import { Toaster } from './components/ui/sonner';
 import { Dashboard } from './components/Dashboard';
 import { OffloadManagement } from './components/OffloadManagement';
 import { ReceivingManagement } from './components/ReceivingManagement';
@@ -10,7 +11,6 @@ import { DispatchManagement } from './components/DispatchManagement';
 import { ReportsView } from './components/ReportsView';
 import { LossAdjustment } from './components/LossAdjustment';
 import { SettingsView } from './components/SettingsView';
-import { authService } from './services/authService';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -21,7 +21,8 @@ import {
   BarChart3, 
   AlertTriangle, 
   Settings,
-  LogOut
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
 
 type Page = 
@@ -35,38 +36,17 @@ type Page =
   | 'losses' 
   | 'settings';
 
-export default function App() {
+function MainApp() {
+  const { currentUser, setCurrentUser } = useData();
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState('');
 
-  const handleLogin = (username: string, password: string) => {
-    // Authentication is handled in Login component via authService
-    // This callback is called after successful API login
-    if (username && password) {
-      setIsAuthenticated(true);
-      setCurrentUser(username);
-    }
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('currentUserId');
   };
 
-  const handleLogout = async () => {
-    try {
-      // Call Laravel Sanctum logout API
-      await authService.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      // Clear local state regardless of API call result
-      setIsAuthenticated(false);
-      setCurrentUser('');
-      setCurrentPage('dashboard');
-      localStorage.removeItem('user');
-    }
-  };
-
-  // Show login screen if not authenticated
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+  if (!currentUser) {
+    return <Login />;
   }
 
   const menuItems = [
@@ -107,58 +87,68 @@ export default function App() {
   };
 
   return (
-    <DataProvider>
-      <div className="flex h-screen bg-gray-100">
-        {/* Sidebar */}
-        <div className="w-64 bg-white shadow-lg">
-          <div className="p-6">
-            <h1 className="text-xl text-blue-600">Lobster Stock</h1>
-            <p className="text-sm text-gray-600">Management System</p>
-          </div>
-          
-          {/* User Info */}
-          <div className="px-6 py-3 border-t border-b border-gray-200 mb-2">
-            <p className="text-xs text-gray-500">Logged in as</p>
-            <p className="text-sm font-medium text-gray-700">{currentUser}</p>
-          </div>
-
-          <nav className="px-3">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentPage(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors ${
-                    currentPage === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Logout Button */}
-          <div className="px-3 mt-4 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className="w-64 bg-white shadow-lg flex flex-col">
+        <div className="p-6">
+          <h1 className="text-xl text-blue-600">Lobster Stock</h1>
+          <p className="text-sm text-gray-600">Management System</p>
         </div>
+        
+        <nav className="px-3 flex-1 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentPage(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors ${
+                  currentPage === item.id
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          {renderPage()}
+        {/* User Info and Logout */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center gap-3 mb-3 px-2">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <UserIcon className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-900">{currentUser.name}</p>
+              <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm">Sign Out</span>
+          </button>
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        {renderPage()}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <DataProvider>
+      <MainApp />
+      <Toaster position="top-right" richColors />
     </DataProvider>
   );
 }

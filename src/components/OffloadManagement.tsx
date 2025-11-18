@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { OffloadRecord } from '../types';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, Loader2 } from 'lucide-react';
 import axios from '../lib/axios';
+import { toast } from 'sonner';
 
 export function OffloadManagement() {
-  const { currentUser, offloadRecords, addOffloadRecord } = useData();
+  const { currentUser } = useData();
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [offloadRecords, setOffloadRecords] = useState<OffloadRecord[]>([]);
   const [formData, setFormData] = useState({
     boatName: '',
     offloadDate: new Date().toISOString().split('T')[0],
@@ -24,53 +29,122 @@ export function OffloadManagement() {
     sizeE: 0,
   });
 
+  // Format date helper function
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit'
+    });
+  };
+
+  // Fetch offload records from database
+  const fetchOffloadRecords = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get('/api/offload-records');
+      const records = response.data.data || response.data;
+      
+      // Ensure all numeric fields are numbers, not strings
+      const normalizedRecords = records.map((record: any) => ({
+        ...record,
+        totalKgOffloaded: parseFloat(record.totalKgOffloaded) || 0,
+        totalKgReceived: parseFloat(record.totalKgReceived) || 0,
+        totalKgDead: parseFloat(record.totalKgDead) || 0,
+        totalKgRotten: parseFloat(record.totalKgRotten) || 0,
+        totalKgAlive: parseFloat(record.totalKgAlive) || 0,
+        sizeU: parseFloat(record.sizeU) || 0,
+        sizeA: parseFloat(record.sizeA) || 0,
+        sizeB: parseFloat(record.sizeB) || 0,
+        sizeC: parseFloat(record.sizeC) || 0,
+        sizeD: parseFloat(record.sizeD) || 0,
+        sizeE: parseFloat(record.sizeE) || 0,
+      }));
+      
+      setOffloadRecords(normalizedRecords);
+    } catch (error) {
+      console.error('Error fetching offload records:', error);
+      toast.error('Failed to load offload records', {
+        description: 'Please refresh the page to try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchOffloadRecords();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    setIsSubmitting(true);
+    setErrors({}); // Clear previous errors
 
     const totalKgAlive = formData.sizeU + formData.sizeA + formData.sizeB + 
                          formData.sizeC + formData.sizeD + formData.sizeE;
 
-    const record: OffloadRecord = {
-      id: `offload-${Date.now()}`,
-      ...formData,
-      totalKgAlive,
-      deadOnTanks: 0,
-      rottenOnTanks: 0,
-      createdBy: currentUser.id,
-      createdAt: new Date().toISOString(),
-    };
-
     // Send data to API using axios
     try {
-      await axios.post('/api/offload-records', {
+      const response = await axios.post('/api/offload-records', {
         ...formData,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
       });
-    } catch (error) {
+      
+      // Success - refresh data from database and close form
+      await fetchOffloadRecords();
+      setShowForm(false);
+      
+      toast.success('Offload record created successfully!', {
+        description: `Created record for ${formData.boatName} - Trip #${formData.tripNumber}`,
+        duration: 4000,
+      });
+      
+      // Reset form
+      setFormData({
+        boatName: '',
+        offloadDate: new Date().toISOString().split('T')[0],
+        tripNumber: '',
+        externalFactory: '',
+        totalKgOffloaded: 0,
+        totalKgReceived: 0,
+        totalKgDead: 0,
+        totalKgRotten: 0,
+        sizeU: 0,
+        sizeA: 0,
+        sizeB: 0,
+        sizeC: 0,
+        sizeD: 0,
+        sizeE: 0,
+      });
+    } catch (error: any) {
       console.error('Error creating offload record:', error);
+      
+      // Check if it's a Laravel validation error (422 status)
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        // Laravel returns arrays of error messages, take the first one for each field
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key]) 
+            ? validationErrors[key][0] 
+            : validationErrors[key];
+        });
+        setErrors(formattedErrors);
+      } else {
+        // For other errors, show toast
+        toast.error('Failed to create offload record', {
+          description: 'Please check your connection and try again.',
+          duration: 5000,
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    addOffloadRecord(record);
-    setShowForm(false);
-    setFormData({
-      boatName: '',
-      offloadDate: new Date().toISOString().split('T')[0],
-      tripNumber: '',
-      externalFactory: '',
-      totalKgOffloaded: 0,
-      totalKgReceived: 0,
-      totalKgDead: 0,
-      totalKgRotten: 0,
-      sizeU: 0,
-      sizeA: 0,
-      sizeB: 0,
-      sizeC: 0,
-      sizeD: 0,
-      sizeE: 0,
-    });
   };
 
   return (
@@ -98,41 +172,61 @@ export function OffloadManagement() {
                 <label className="block text-sm text-gray-600 mb-1">Boat Name</label>
                 <input
                   type="text"
-                  required
+                  
                   value={formData.boatName}
-                  onChange={(e) => setFormData({ ...formData, boatName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  onChange={(e) => {
+                    setFormData({ ...formData, boatName: e.target.value });
+                    if (errors.boatName) setErrors({ ...errors, boatName: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.boatName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
                 />
+                {errors.boatName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.boatName}</p>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
                 <input
                   type="date"
-                  required
+                  
                   value={formData.offloadDate}
-                  onChange={(e) => setFormData({ ...formData, offloadDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  onChange={(e) => {
+                    setFormData({ ...formData, offloadDate: e.target.value });
+                    if (errors.offloadDate) setErrors({ ...errors, offloadDate: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.offloadDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
                 />
+                {errors.offloadDate && <p className="text-red-600 text-sm mt-1 font-medium">{errors.offloadDate}</p>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Trip Number</label>
                 <input
                   type="text"
-                  required
+                  
                   value={formData.tripNumber}
-                  onChange={(e) => setFormData({ ...formData, tripNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  onChange={(e) => {
+                    setFormData({ ...formData, tripNumber: e.target.value });
+                    if (errors.tripNumber) setErrors({ ...errors, tripNumber: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.tripNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
                 />
+                {errors.tripNumber && <p className="text-red-600 text-sm mt-1 font-medium">{errors.tripNumber}</p>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">External Factory</label>
                 <input
                   type="text"
-                  required
+                  
                   value={formData.externalFactory}
-                  onChange={(e) => setFormData({ ...formData, externalFactory: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  onChange={(e) => {
+                    setFormData({ ...formData, externalFactory: e.target.value });
+                    if (errors.externalFactory) setErrors({ ...errors, externalFactory: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.externalFactory ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
                 />
+                {errors.externalFactory && <p className="text-red-600 text-sm mt-1 font-medium">{errors.externalFactory}</p>}
               </div>
             </div>
 
@@ -144,44 +238,64 @@ export function OffloadManagement() {
                   <input
                     type="number"
                     step="0.01"
-                    required
+                    
                     value={formData.totalKgOffloaded}
-                    onChange={(e) => setFormData({ ...formData, totalKgOffloaded: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, totalKgOffloaded: parseFloat(e.target.value) || 0 });
+                      if (errors.totalKgOffloaded) setErrors({ ...errors, totalKgOffloaded: '' });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgOffloaded ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.totalKgOffloaded && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgOffloaded}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Total Kg Received</label>
                   <input
                     type="number"
                     step="0.01"
-                    required
+                    
                     value={formData.totalKgReceived}
-                    onChange={(e) => setFormData({ ...formData, totalKgReceived: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, totalKgReceived: parseFloat(e.target.value) || 0 });
+                      if (errors.totalKgReceived) setErrors({ ...errors, totalKgReceived: '' });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgReceived ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.totalKgReceived && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgReceived}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Total Kg Dead</label>
                   <input
                     type="number"
                     step="0.01"
-                    required
+                    
                     value={formData.totalKgDead}
-                    onChange={(e) => setFormData({ ...formData, totalKgDead: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, totalKgDead: parseFloat(e.target.value) || 0 });
+                      if (errors.totalKgDead) setErrors({ ...errors, totalKgDead: '' });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgDead ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.totalKgDead && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgDead}</p>}
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Total Kg Rotten</label>
                   <input
                     type="number"
                     step="0.01"
-                    required
+                    
                     value={formData.totalKgRotten}
-                    onChange={(e) => setFormData({ ...formData, totalKgRotten: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, totalKgRotten: parseFloat(e.target.value) || 0 });
+                      if (errors.totalKgRotten) setErrors({ ...errors, totalKgRotten: '' });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgRotten ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                    disabled={isSubmitting}
                   />
+                  {errors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgRotten}</p>}
                 </div>
               </div>
             </div>
@@ -189,33 +303,50 @@ export function OffloadManagement() {
             <div className="border-t pt-4">
               <h3 className="mb-3">Live Lobster by Size</h3>
               <div className="grid grid-cols-6 gap-4">
-                {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
-                  <div key={size}>
-                    <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData[`size${size}`]}
-                      onChange={(e) => setFormData({ ...formData, [`size${size}`]: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                ))}
+                {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => {
+                  const fieldName = `size${size}` as keyof typeof formData;
+                  return (
+                    <div key={size}>
+                      <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        
+                        value={formData[fieldName] as number}
+                        onChange={(e) => {
+                          setFormData({ ...formData, [fieldName]: parseFloat(e.target.value) || 0 });
+                          if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                        disabled={isSubmitting}
+                      />
+                      {errors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
-                Create Offload Record
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Offload Record'
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -229,36 +360,46 @@ export function OffloadManagement() {
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="px-4 py-3 text-left text-sm text-gray-600">Boat</th>
-              <th className="px-4 py-3 text-left text-sm text-gray-600">Date</th>
+              <th className="px-4 py-3 text-left text-sm text-gray-600">Offload Date</th>
               <th className="px-4 py-3 text-left text-sm text-gray-600">Trip #</th>
               <th className="px-4 py-3 text-left text-sm text-gray-600">Factory</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Offloaded</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Received</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Alive</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Dead</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Rotten</th>
+              <th className="px-4 py-3 text-right text-sm text-gray-600">Offloaded (kg)</th>
+              <th className="px-4 py-3 text-right text-sm text-gray-600">Received (kg)</th>
+              <th className="px-4 py-3 text-right text-sm text-gray-600">Alive (kg)</th>
+              <th className="px-4 py-3 text-right text-sm text-gray-600">Dead (kg)</th>
+              <th className="px-4 py-3 text-right text-sm text-gray-600">Rotten (kg)</th>
             </tr>
           </thead>
           <tbody>
-            {offloadRecords.map((record, idx) => (
-              <tr key={record.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-4 py-3">{record.boatName}</td>
-                <td className="px-4 py-3">{record.offloadDate}</td>
-                <td className="px-4 py-3">{record.tripNumber}</td>
-                <td className="px-4 py-3">{record.externalFactory}</td>
-                <td className="px-4 py-3 text-right">{record.totalKgOffloaded.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">{record.totalKgReceived.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">{record.totalKgAlive.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">{record.totalKgDead.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right">{record.totalKgRotten.toFixed(2)}</td>
+            {isLoading ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading records...
+                  </div>
+                </td>
               </tr>
-            ))}
-            {offloadRecords.length === 0 && (
+            ) : offloadRecords.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                   No offload records yet. Click "New Offload" to create one.
                 </td>
               </tr>
+            ) : (
+              offloadRecords.map((record, idx) => (
+                <tr key={record.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-3">{record.boatName}</td>
+                  <td className="px-4 py-3">{formatDate(record.offloadDate)}</td>
+                  <td className="px-4 py-3">{record.tripNumber}</td>
+                  <td className="px-4 py-3">{record.externalFactory}</td>
+                  <td className="px-4 py-3 text-right">{record.totalKgOffloaded.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right">{record.totalKgReceived.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right">{record.totalKgAlive.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right">{record.totalKgDead.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right">{record.totalKgRotten.toFixed(2)}</td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

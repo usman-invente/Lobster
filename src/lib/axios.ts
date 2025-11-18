@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create axios instance with default config for Laravel Sanctum
 const axiosInstance = axios.create({
   baseURL: 'http://localhost:8000', // Update this to your Laravel API URL
-  withCredentials: true, // Important for Laravel Sanctum cookie-based authentication
+  withCredentials: false, // Set to false if using Bearer token instead of cookies
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -14,7 +14,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // You can add auth token here if using token-based auth
-    const token = localStorage.getItem('auth_token');
+    const token =  '2|fBYHllqAdt5c5ysPXXxyOG4UZNBJ8OqOIhtwflwU2a8f84dd';             //localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

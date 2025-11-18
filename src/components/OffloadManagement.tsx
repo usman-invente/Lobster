@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { OffloadRecord } from '../types';
-import { Plus, FileText, Loader2 } from 'lucide-react';
+import { Plus, FileText, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
 
@@ -12,6 +12,14 @@ export function OffloadManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [offloadRecords, setOffloadRecords] = useState<OffloadRecord[]>([]);
+  
+  // Server-side table state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [sortColumn, setSortColumn] = useState('offloadDate');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [formData, setFormData] = useState({
     boatName: '',
     offloadDate: new Date().toISOString().split('T')[0],
@@ -39,12 +47,31 @@ export function OffloadManagement() {
     });
   };
 
-  // Fetch offload records from database
+  // Fetch offload records from database with server-side features
   const fetchOffloadRecords = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('/api/offload-records');
-      const records = response.data.data || response.data;
+      const response = await axios.get('/api/offload-records', {
+        params: {
+          page: currentPage,
+          per_page: perPage,
+          search: searchQuery,
+          sort_by: sortColumn,
+          sort_direction: sortDirection,
+        }
+      });
+      
+      // Handle response - expecting { data: [...], meta: {...} }
+      const records = response.data.data || [];
+      const pagination = response.data.meta || { total: 0 };
+      
+      if (!Array.isArray(records)) {
+        console.error('Expected array in response.data.data, got:', typeof records);
+        setOffloadRecords([]);
+        setTotalRecords(0);
+        setIsLoading(false);
+        return;
+      }
       
       // Ensure all numeric fields are numbers, not strings
       const normalizedRecords = records.map((record: any) => ({
@@ -63,6 +90,7 @@ export function OffloadManagement() {
       }));
       
       setOffloadRecords(normalizedRecords);
+      setTotalRecords(pagination.total || normalizedRecords.length);
     } catch (error) {
       console.error('Error fetching offload records:', error);
       toast.error('Failed to load offload records', {
@@ -73,10 +101,34 @@ export function OffloadManagement() {
     }
   };
 
-  // Load data on component mount
+  // Load data on component mount and when filters change
   useEffect(() => {
     fetchOffloadRecords();
-  }, []);
+  }, [currentPage, perPage, searchQuery, sortColumn, sortDirection]);
+
+  // Handle search with debounce
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page on new search
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // Handle sort
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(totalRecords / perPage);
+  const startRecord = (currentPage - 1) * perPage + 1;
+  const endRecord = Math.min(currentPage * perPage, totalRecords);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,6 +213,38 @@ export function OffloadManagement() {
           <Plus className="w-4 h-4" />
           New Offload
         </button>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+        <div className="flex items-center gap-4">
+          <div className="flex-1 relative flex items-center">
+            <Search className="absolute left-3 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by boat name, trip number, or factory..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <label className="text-sm text-gray-600">Show:</label>
+            <select
+              value={perPage}
+              onChange={(e) => {
+                setPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {showForm && (
@@ -359,15 +443,78 @@ export function OffloadManagement() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3 text-left text-sm text-gray-600">Boat</th>
-              <th className="px-4 py-3 text-left text-sm text-gray-600">Offload Date</th>
-              <th className="px-4 py-3 text-left text-sm text-gray-600">Trip #</th>
-              <th className="px-4 py-3 text-left text-sm text-gray-600">Factory</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Offloaded (kg)</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Received (kg)</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Alive (kg)</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Dead (kg)</th>
-              <th className="px-4 py-3 text-right text-sm text-gray-600">Rotten (kg)</th>
+              <th 
+                className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('boatName')}
+              >
+                <div className="flex items-center gap-1">
+                  Boat {sortColumn === 'boatName' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('offloadDate')}
+              >
+                <div className="flex items-center gap-1">
+                  Date {sortColumn === 'offloadDate' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('tripNumber')}
+              >
+                <div className="flex items-center gap-1">
+                  Trip # {sortColumn === 'tripNumber' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('externalFactory')}
+              >
+                <div className="flex items-center gap-1">
+                  Factory {sortColumn === 'externalFactory' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalKgOffloaded')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Offloaded (kg) {sortColumn === 'totalKgOffloaded' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalKgReceived')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Received (kg) {sortColumn === 'totalKgReceived' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalKgAlive')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Alive (kg) {sortColumn === 'totalKgAlive' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalKgDead')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Dead (kg) {sortColumn === 'totalKgDead' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('totalKgRotten')}
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Rotten (kg) {sortColumn === 'totalKgRotten' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -403,6 +550,48 @@ export function OffloadManagement() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {offloadRecords.length > 0 ? startRecord : 0} to {endRecord} of {totalRecords} records
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <span className="px-3 py-1 text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Last
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

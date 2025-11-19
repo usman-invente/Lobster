@@ -33,8 +33,8 @@ export function ReceivingManagement() {
   // State for available boats (from offload records)
   const [availableBoats, setAvailableBoats] = useState<string[]>([]);
 
-  // Available crate numbers (1-200)
-  const availableCrates = Array.from({ length: 200 }, (_, i) => i + 1);
+  // Available crate numbers (1-300)
+  const availableCrates = Array.from({ length: 300 }, (_, i) => i + 1);
 
   // State for offload records (to populate boat and date dropdowns)
   const [offloadRecords, setOffloadRecords] = useState<any[]>([]);
@@ -320,8 +320,7 @@ export function ReceivingManagement() {
                       </div>
                       <div className="flex-1">
                         <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
-                        <input
-                          type="date"
+                        <select
                           required
                           value={item.offloadDate}
                           onChange={(e) => {
@@ -332,10 +331,18 @@ export function ReceivingManagement() {
                               setErrors(newErrors);
                             }
                           }}
-                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors[`lineItems.${idx}.offloadDate`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                          disabled={isSubmitting}
-                          placeholder="mm/dd/yyyy"
-                        />
+                          className={`w-full px-3 py-2 border rounded-lg ${errors[`lineItems.${idx}.offloadDate`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                          disabled={isSubmitting || !item.boatName}
+                        >
+                          <option value="">Select date</option>
+                          {offloadRecords
+                            .filter(r => r.boatName === item.boatName)
+                            .map(r => (
+                              <option key={r.id} value={r.offloadDate}>
+                                {formatDate(r.offloadDate)} - Trip #{r.tripNumber}
+                              </option>
+                            ))}
+                        </select>
                         {errors[`lineItems.${idx}.offloadDate`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.offloadDate`]}</p>}
                       </div>
                       <div className="w-32">

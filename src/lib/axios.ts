@@ -14,7 +14,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // You can add auth token here if using token-based auth
-    const token =  '2|fBYHllqAdt5c5ysPXXxyOG4UZNBJ8OqOIhtwflwU2a8f84dd';             //localStorage.getItem('auth_token');
+    const token =  '3|Dy0ussNVNO3Q489kQFblnMswJdBMoly5vU9MVYHc282fce3b';             //localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

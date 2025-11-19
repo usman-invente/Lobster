@@ -80,13 +80,13 @@ export function RecheckProcess() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="flex items-center gap-2 mb-6">
         <CheckCircle className="w-6 h-6" />
         Recheck & Store Crates
       </h1>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Received Crates List */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="mb-4">Received Crates</h2>

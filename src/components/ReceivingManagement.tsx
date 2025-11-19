@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { ReceivingBatch, CrateLineItem, SizeCategory } from '../types';
 import { Plus, Trash2, Package } from 'lucide-react';
-import axios from '../lib/axios';
 
 export function ReceivingManagement() {
   const { currentUser, offloadRecords, receivingBatches, addReceivingBatch, getAvailableCrates } = useData();
@@ -39,7 +38,7 @@ export function ReceivingManagement() {
     setLineItems(updated);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || lineItems.length === 0) return;
 
@@ -66,17 +65,6 @@ export function ReceivingManagement() {
       createdAt: new Date().toISOString(),
     }));
 
-    // Send data to API using axios
-    try {
-      await axios.post('/api/receiving-batches', {
-        date,
-        batchNumber,
-        crates: lineItems,
-      });
-    } catch (error) {
-      console.error('Error creating receiving batch:', error);
-    }
-
     addReceivingBatch(batch, crates);
     setShowForm(false);
     setBatchNumber('');
@@ -85,8 +73,8 @@ export function ReceivingManagement() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="flex items-center gap-2">
           <Package className="w-6 h-6" />
           Receiving Batches
@@ -101,10 +89,10 @@ export function ReceivingManagement() {
       </div>
 
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-6">
           <h2 className="mb-4">Create Receiving Batch</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Date</label>
                 <input

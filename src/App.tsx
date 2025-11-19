@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { DataProvider, useData } from './context/DataContext';
 import { Login } from './components/Login';
-import { Toaster } from './components/ui/sonner';
 import { Dashboard } from './components/Dashboard';
 import { OffloadManagement } from './components/OffloadManagement';
 import { ReceivingManagement } from './components/ReceivingManagement';
@@ -22,7 +21,9 @@ import {
   AlertTriangle, 
   Settings,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Menu,
+  X
 } from 'lucide-react';
 
 type Page = 
@@ -39,6 +40,7 @@ type Page =
 function MainApp() {
   const { currentUser, setCurrentUser } = useData();
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -88,8 +90,31 @@ function MainApp() {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
+      >
+        {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      </button>
+
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg flex flex-col">
+      <div className={`
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+        fixed lg:static
+        w-64 bg-white shadow-lg flex flex-col
+        transition-transform duration-300 ease-in-out
+        z-40 h-full
+      `}>
         <div className="p-6">
           <h1 className="text-xl text-blue-600">Lobster Stock</h1>
           <p className="text-sm text-gray-600">Management System</p>
@@ -101,7 +126,10 @@ function MainApp() {
             return (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  setCurrentPage(item.id);
+                  setMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors ${
                   currentPage === item.id
                     ? 'bg-blue-600 text-white'
@@ -148,7 +176,6 @@ export default function App() {
   return (
     <DataProvider>
       <MainApp />
-      <Toaster position="top-right" richColors />
     </DataProvider>
   );
 }

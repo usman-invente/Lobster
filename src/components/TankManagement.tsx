@@ -13,13 +13,13 @@ export function TankManagement() {
     : null;
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="flex items-center gap-2 mb-6">
         <Database className="w-6 h-6" />
         Tank Management
       </h1>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Tank List */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="mb-4">Active Tanks</h2>
@@ -51,12 +51,12 @@ export function TankManagement() {
         </div>
 
         {/* Tank Details */}
-        <div className="col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           {selectedTankStock ? (
             <>
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="mb-4">{selectedTankStock.tankName} - Summary</h2>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-gray-600">Total Weight</p>
                     <p className="text-2xl">{selectedTankStock.summary.totalKg.toFixed(2)} kg</p>
@@ -71,7 +71,7 @@ export function TankManagement() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-6 gap-2">
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                   {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
                     <div key={size} className="p-2 bg-gray-50 rounded text-center">
                       <p className="text-sm text-gray-600">Size {size}</p>

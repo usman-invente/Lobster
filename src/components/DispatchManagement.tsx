@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { Dispatch, DispatchLineItem, SizeCategory } from '../types';
 import { Send, Plus, Trash2 } from 'lucide-react';
-import axios from '../lib/axios';
 
 export function DispatchManagement() {
   const { currentUser, dispatches, getAllTankStock, addDispatch } = useData();
@@ -57,9 +56,11 @@ export function DispatchManagement() {
     return summary;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser || selectedItems.length === 0) return;
+  const handleSubmit = () => {
+    if (!currentUser || selectedItems.length === 0 || !clientAwb.trim()) {
+      alert('Please fill in all required fields and select items to dispatch.');
+      return;
+    }
 
     const summary = calculateSummary();
     const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
@@ -81,25 +82,6 @@ export function DispatchManagement() {
       createdAt: new Date().toISOString(),
     };
 
-    // Send data to API using axios
-    try {
-      await axios.post('/api/dispatches', {
-        type: dispatchType,
-        clientAwb,
-        dispatchDate,
-        lineItems: selectedItems,
-        totalKg,
-        sizeU: summary.U,
-        sizeA: summary.A,
-        sizeB: summary.B,
-        sizeC: summary.C,
-        sizeD: summary.D,
-        sizeE: summary.E,
-      });
-    } catch (error) {
-      console.error('Error creating dispatch:', error);
-    }
-
     addDispatch(dispatch);
     setShowForm(false);
     setClientAwb('');
@@ -111,8 +93,8 @@ export function DispatchManagement() {
   const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="flex items-center gap-2">
           <Send className="w-6 h-6" />
           Dispatch Management
@@ -131,7 +113,7 @@ export function DispatchManagement() {
           {/* Dispatch Header */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="mb-4">Create Dispatch</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Type</label>
                 <select
@@ -169,59 +151,71 @@ export function DispatchManagement() {
           {/* Select Stock */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h3 className="mb-4">Select Stock to Dispatch</h3>
-            <div className="space-y-4 max-h-[400px] overflow-y-auto">
-              {allTankStock.map(tank => (
-                <div key={tank.tankId} className="border rounded-lg p-4">
-                  <h4 className="mb-3">{tank.tankName} ({tank.summary.totalKg.toFixed(2)} kg)</h4>
+            {allTankStock.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No stock available in tanks.</p>
+                <p className="text-sm mt-2">Please add stock through Recheck & Store process first.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                {allTankStock.map(tank => {
+                  const hasStock = tank.crates.length > 0 || tank.looseStock.length > 0;
+                  if (!hasStock) return null;
                   
-                  {/* Crates */}
-                  {tank.crates.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-sm text-gray-600 mb-2">Crates:</p>
-                      <div className="space-y-1">
-                        {tank.crates.map(crate => (
-                          <div key={crate.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span className="text-sm">
-                              Crate #{crate.crateNumber} - Size {crate.size} - {crate.kg.toFixed(2)} kg
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                            >
-                              Add
-                            </button>
+                  return (
+                    <div key={tank.tankId} className="border rounded-lg p-4">
+                      <h4 className="mb-3">{tank.tankName} ({tank.summary.totalKg.toFixed(2)} kg)</h4>
+                      
+                      {/* Crates */}
+                      {tank.crates.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-600 mb-2">Crates:</p>
+                          <div className="space-y-1">
+                            {tank.crates.map(crate => (
+                              <div key={crate.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span className="text-sm">
+                                  Crate #{crate.crateNumber} - Size {crate.size} - {crate.kg.toFixed(2)} kg
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        </div>
+                      )}
 
-                  {/* Loose Stock */}
-                  {tank.looseStock.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
-                      <div className="space-y-1">
-                        {tank.looseStock.map(stock => (
-                          <div key={stock.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                            <span className="text-sm">
-                              Loose - Size {stock.size} - {stock.kg.toFixed(2)} kg
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                            >
-                              Add
-                            </button>
+                      {/* Loose Stock */}
+                      {tank.looseStock.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
+                          <div className="space-y-1">
+                            {tank.looseStock.map(stock => (
+                              <div key={stock.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span className="text-sm">
+                                  Loose - Size {stock.size} - {stock.kg.toFixed(2)} kg
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Selected Items */}
@@ -265,7 +259,7 @@ export function DispatchManagement() {
           {/* Summary */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h3 className="mb-4">Dispatch Summary</h3>
-            <div className="grid grid-cols-7 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4">
               <div className="p-3 bg-blue-50 rounded-lg text-center">
                 <p className="text-sm text-gray-600">Total</p>
                 <p>{totalKg.toFixed(2)} kg</p>
@@ -280,19 +274,21 @@ export function DispatchManagement() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
+              type="button"
               onClick={handleSubmit}
-              disabled={selectedItems.length === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+              disabled={selectedItems.length === 0 || !clientAwb.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              Create Dispatch
+              Create Dispatch ({selectedItems.length} items)
             </button>
             <button
               type="button"
               onClick={() => {
                 setShowForm(false);
                 setSelectedItems([]);
+                setClientAwb('');
               }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
             >

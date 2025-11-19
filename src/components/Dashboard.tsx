@@ -13,11 +13,11 @@ export function Dashboard() {
   const totalDispatched = dispatches.reduce((sum, dispatch) => sum + dispatch.totalKg, 0);
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="mb-6">Dashboard</h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -72,7 +72,7 @@ export function Dashboard() {
       {/* Stock by Size */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="mb-4">Current Stock by Size</h2>
-        <div className="grid grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
           {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
             <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
               <p className="text-sm text-gray-600 mb-1">Size {size}</p>
@@ -88,7 +88,7 @@ export function Dashboard() {
       {/* Tank Summary */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="mb-4">Tank Summary</h2>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {allTankStock.slice(0, 8).map(tank => (
             <div key={tank.tankId} className="p-4 border rounded-lg">
               <p className="mb-2">{tank.tankName}</p>
@@ -104,7 +104,7 @@ export function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Offloads */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="mb-4">Recent Offloads</h3>

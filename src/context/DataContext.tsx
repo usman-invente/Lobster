@@ -65,7 +65,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const savedData = localStorage.getItem('lobsterStockData');
     if (savedData) {
       const data = JSON.parse(savedData);
-      setUsers(data.users || []);
+      const loadedUsers = data.users || [];
+      setUsers(loadedUsers);
       setTanks(data.tanks || []);
       setOffloadRecords(data.offloadRecords || []);
       setReceivingBatches(data.receivingBatches || []);
@@ -73,6 +74,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLooseStock(data.looseStock || []);
       setLosses(data.losses || []);
       setDispatches(data.dispatches || []);
+      
+      // Restore current user from localStorage
+      const savedUserId = localStorage.getItem('currentUserId');
+      if (savedUserId) {
+        const user = loadedUsers.find((u: User) => u.id === savedUserId);
+        if (user) {
+          setCurrentUser(user);
+        }
+      }
     } else {
       // Initialize default tanks (20 tanks)
       const defaultTanks: Tank[] = Array.from({ length: 20 }, (_, i) => ({
@@ -91,7 +101,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       setUsers([defaultUser]);
-      setCurrentUser(defaultUser);
     }
   }, []);
 

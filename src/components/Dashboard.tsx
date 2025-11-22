@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../lib/axios';
 import { Package, Database, Send, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
+import { Skeleton } from './ui/skeleton';
 
 export function Dashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -27,11 +28,10 @@ export function Dashboard() {
     <div className="p-4 md:p-6">
       <h1 className="mb-6">Dashboard</h1>
       {loading ? (
-        <div className="fixed inset-0 flex items-center justify-center min-h-screen bg-white bg-opacity-70 z-50">
-          <div className="flex flex-col items-center">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-            <span className="text-gray-600 text-lg">Loading stats...</span>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full bg-gray-200" />
+          ))}
         </div>
       ) : error ? (
         <div className="text-red-600 text-center py-12">{error}</div>

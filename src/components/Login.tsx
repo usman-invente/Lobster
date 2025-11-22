@@ -2,32 +2,54 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useData } from '../context/DataContext';
-import { LogIn, Anchor } from 'lucide-react';
+import { LogIn, Anchor, Loader2 } from 'lucide-react';
+import axios from '../lib/axios';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../userSlice';
 
 export function Login() {
   const navigate = useNavigate();
-  const { setCurrentUser } = useData();
+  const dispatch = useDispatch();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
       setError('Please enter both username and password');
       return;
     }
     setError('');
-    // Set a dummy user in context
-    setCurrentUser({
-      id: 'user-login',
-      name: username,
-      role: 'admin',
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem('currentUserId', 'user-login');
-    navigate('/dashboard');
+    setSubmitting(true);
+    try {
+      // Call your login API endpoint
+      const response = await axios.post('/api/login', {
+        username,
+        password,
+      });
+      // Debug: log the response data to check for token
+      console.log('Login API response:', response.data);
+      // Assume response.data contains user info and token
+      const user = response.data.user || response.data;
+      dispatch(setUser(user));
+      // Store token from response.data.token
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      } else if (user.token) {
+        localStorage.setItem('token', user.token);
+      } else {
+        console.warn('No token found in login response!');
+      }
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || 'Login failed. Please check your credentials.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -83,9 +105,10 @@ export function Login() {
             <button
               type="submit"
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={submitting}
             >
-              <LogIn className="w-5 h-5" />
-              Sign In
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
+              {submitting ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
         </div>

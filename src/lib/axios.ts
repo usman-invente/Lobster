@@ -14,9 +14,14 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // You can add auth token here if using token-based auth
-    const token =  '2|BLvWw3Y7gLzY3FynUXb6L532E2ITDnIL5Q7r8Qmr17d9b34f';             //localStorage.getItem('auth_token');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Debug: log token and Authorization header
+      console.log('Auth token:', token);
+      console.log('Authorization header:', config.headers.Authorization);
+    } else {
+      console.log('No auth token found in localStorage');
     }
     return config;
   },
@@ -30,8 +35,8 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and redirect to login
-      localStorage.removeItem('auth_token');
+      // Handle unauthorized - clear token and optionally redirect to login
+      localStorage.removeItem('token'); // Fix: clear the correct token key
       // You can dispatch a logout action here
     }
     return Promise.reject(error);

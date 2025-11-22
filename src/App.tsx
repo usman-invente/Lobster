@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { DataProvider, useData } from './context/DataContext';
+import { Provider } from 'react-redux';
+import { store } from './store';
+import { DataProvider } from './context/DataContext';
 import { Login } from './components/Login';
+import { useSelector } from 'react-redux';
+import { RootState } from './store';
 import { Dashboard } from './components/Dashboard';
 import { OffloadManagement } from './components/OffloadManagement';
 import { ReceivingManagement } from './components/ReceivingManagement';
@@ -40,16 +44,54 @@ type Page =
   | 'settings';
 
 function MainApp() {
-  const { currentUser, setCurrentUser } = useData();
+  const user = useSelector((state: RootState) => state.user.user);
+  const dispatch = store.dispatch;
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [checkingUser, setCheckingUser] = React.useState(false);
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !user) {
+      setCheckingUser(true);
+      import('./lib/auth').then(({ fetchCurrentUser }) => {
+        fetchCurrentUser()
+          .then(userData => {
+            dispatch({
+              type: 'user/setUser',
+              payload: { ...userData, token },
+            });
+            setCheckingUser(false);
+          })
+          .catch(() => {
+            localStorage.removeItem('token');
+            window.location.reload();
+          });
+      });
+    }
+  }, [user, dispatch]);
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('currentUserId');
+    localStorage.removeItem('token');
+    window.location.reload();
   };
 
-  if (!currentUser) {
+  if (!user) {
+    const token = localStorage.getItem('token');
+    if (token || checkingUser) {
+      // Show a subtle, centered loader
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-white">
+          <div className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-7 w-7 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span className="text-gray-500 text-sm">Loading...</span>
+          </div>
+        </div>
+      );
+    }
     return <Login />;
   }
 
@@ -152,8 +194,8 @@ function MainApp() {
               <UserIcon className="w-5 h-5 text-blue-600" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-gray-900">{currentUser.name}</p>
-              <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+              <p className="text-sm text-gray-900">{user.name}</p>
+              <p className="text-xs text-gray-500 capitalize">{user.role || user.email}</p>
             </div>
           </div>
           <button
@@ -176,11 +218,13 @@ function MainApp() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <DataProvider>
-        <MainApp />
-           <Toaster position="top-right" richColors />
-      </DataProvider>
-    </BrowserRouter>
+    <Provider store={store}>
+      <BrowserRouter>
+        <DataProvider>
+          <MainApp />
+          <Toaster position="top-right" richColors />
+        </DataProvider>
+      </BrowserRouter>
+    </Provider>
   );
 }

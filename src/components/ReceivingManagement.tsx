@@ -287,8 +287,8 @@ export function ReceivingManagement() {
               ) : (
                 <div className="space-y-3">
                   {lineItems.map((item, idx) => (
-                    <div key={idx} className="flex gap-3 items-end p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
+                    <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Boat Name</label>
                         <select
                           required
@@ -318,7 +318,7 @@ export function ReceivingManagement() {
                         </select>
                         {errors[`lineItems.${idx}.boatName`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.boatName`]}</p>}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
                         <select
                           required
@@ -349,7 +349,7 @@ export function ReceivingManagement() {
                         </select>
                         {errors[`lineItems.${idx}.offloadDate`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.offloadDate`]}</p>}
                       </div>
-                      <div className="w-32">
+                      <div className="w-32 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Crate #</label>
                         <select
                           required
@@ -371,7 +371,7 @@ export function ReceivingManagement() {
                         </select>
                         {errors[`lineItems.${idx}.crateNumber`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.crateNumber`]}</p>}
                       </div>
-                      <div className="w-24">
+                      <div className="w-24 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Size</label>
                         <select
                           required
@@ -393,7 +393,7 @@ export function ReceivingManagement() {
                         </select>
                         {errors[`lineItems.${idx}.size`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.size`]}</p>}
                       </div>
-                      <div className="w-32">
+                      <div className="w-32 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Kg</label>
                         <input
                           type="number"

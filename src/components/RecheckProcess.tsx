@@ -15,6 +15,7 @@ export function RecheckProcess() {
   const [receivedCrates, setReceivedCrates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isStoring, setIsStoring] = useState(false);
   const [tanks, setTanks] = useState<any[]>([]);
 
   // Fetch tanks from API
@@ -95,7 +96,7 @@ export function RecheckProcess() {
     if (!selectedCrate || !selectedTank || !currentUser) return;
 
     setErrors({}); // Clear previous errors
-
+    setIsStoring(true);
     try {
       if (storageType === 'crate') {
         // Store as crate in tank
@@ -103,7 +104,6 @@ export function RecheckProcess() {
           tankId: selectedTank,
           status: 'stored',
         });
-        
         toast.success('Crate stored successfully!', {
           description: `Crate #${selectedCrate.crateNumber} has been stored in the tank.`,
         });
@@ -117,26 +117,21 @@ export function RecheckProcess() {
           boatName: selectedCrate.boatName,
           offloadDate: selectedCrate.offloadDate,
         });
-
         // Mark crate as emptied
         await axios.put(`/api/crates/${selectedCrate.id}`, {
           tankId: selectedTank,
           status: 'emptied',
         });
-        
         toast.success('Crate emptied successfully!', {
           description: `Crate #${selectedCrate.crateNumber} has been emptied into loose stock.`,
         });
       }
-
       // Refresh the crates list
       await fetchReceivedCrates();
-      
       setSelectedCrate(null);
       setSelectedTank('');
     } catch (error: any) {
       console.error('Error storing crate:', error);
-      
       // Check if it's a Laravel validation error (422 status)
       if (error.response && error.response.status === 422) {
         const validationErrors = error.response.data.errors;
@@ -153,6 +148,8 @@ export function RecheckProcess() {
           description: 'Please try again.',
         });
       }
+    } finally {
+      setIsStoring(false);
     }
   };
 
@@ -291,9 +288,9 @@ export function RecheckProcess() {
                       className={`w-full px-3 py-2 border rounded-lg ${errors.tankId ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                     >
                       <option value="">Select tank</option>
-                      {tanks.filter(t => t.active == 1 || t.active === true).map(tank => (
+                      {tanks.filter(t => t.status == 1).map(tank => (
                         <option key={tank.id} value={tank.id}>
-                          {tank.name}
+                          {tank.tankName}
                         </option>
                       ))}
                     </select>
@@ -301,10 +298,17 @@ export function RecheckProcess() {
                   </div>
                   <button
                     onClick={handleStore}
-                    disabled={!selectedTank}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                    disabled={!selectedTank || isStoring}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 flex items-center justify-center"
                   >
-                    {storageType === 'crate' ? 'Store Crate in Tank' : 'Empty into Tank'}
+                    {isStoring ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        {storageType === 'crate' ? 'Storing...' : 'Emptying...'}
+                      </>
+                    ) : (
+                      storageType === 'crate' ? 'Store Crate in Tank' : 'Empty into Tank'
+                    )}
                   </button>
                 </div>
               </div>

@@ -337,11 +337,15 @@ export function ReceivingManagement() {
                           <option value="">Select date</option>
                           {offloadRecords
                             .filter(r => r.boatName === item.boatName)
-                            .map(r => (
-                              <option key={r.id} value={r.offloadDate}>
-                                {formatDate(r.offloadDate)} - Trip #{r.tripNumber}
-                              </option>
-                            ))}
+                            .map(r => {
+                              // Extract only the date part (Y-m-d format)
+                              const dateOnly = r.offloadDate.split('T')[0];
+                              return (
+                                <option key={r.id} value={dateOnly}>
+                                  {formatDate(r.offloadDate)} - Trip #{r.tripNumber}
+                                </option>
+                              );
+                            })}
                         </select>
                         {errors[`lineItems.${idx}.offloadDate`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.offloadDate`]}</p>}
                       </div>

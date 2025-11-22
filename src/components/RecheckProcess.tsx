@@ -1,17 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { CrateLineItem, LooseStock, SizeCategory } from '../types';
-import { CheckCircle, Package } from 'lucide-react';
+import { CheckCircle, Package, Loader2 } from 'lucide-react';
+import axios from '../lib/axios';
+import { toast } from 'sonner';
 
 export function RecheckProcess() {
-  const { currentUser, crates, tanks, updateCrate, addLooseStock } = useData();
+  const { currentUser } = useData();
   const [selectedCrate, setSelectedCrate] = useState<CrateLineItem | null>(null);
   const [storageType, setStorageType] = useState<'crate' | 'loose'>('crate');
   const [selectedTank, setSelectedTank] = useState('');
   const [editedKg, setEditedKg] = useState(0);
   const [editedSize, setEditedSize] = useState<SizeCategory>('A');
+  const [receivedCrates, setReceivedCrates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [tanks, setTanks] = useState<any[]>([]);
 
-  const receivedCrates = crates.filter(c => c.status === 'received' || c.status === 'rechecked');
+  // Fetch tanks from API
+  const fetchTanks = async () => {
+    try {
+      const response = await axios.get('/api/tanks');
+      setTanks(response.data.data || response.data || []);
+    } catch (error) {
+      console.error('Error fetching tanks:', error);
+      toast.error('Failed to load tanks');
+    }
+  };
+
+  // Fetch received crates from API
+  const fetchReceivedCrates = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get('/api/crates', {
+        params: {
+          status: 'received,rechecked', // Fetch crates with received or rechecked status
+          per_page: 1000
+        }
+      });
+      
+      const crates = response.data.data || [];
+      setReceivedCrates(crates);
+    } catch (error) {
+      console.error('Error fetching received crates:', error);
+      toast.error('Failed to load received crates', {
+        description: 'Please refresh the page to try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load tanks and crates on component mount
+  useEffect(() => {
+    fetchTanks();
+    fetchReceivedCrates();
+  }, []);
 
   const handleSelectCrate = (crate: CrateLineItem) => {
     setSelectedCrate(crate);
@@ -20,63 +64,96 @@ export function RecheckProcess() {
     setSelectedTank('');
   };
 
-  const handleRecheck = () => {
+  const handleRecheck = async () => {
     if (!selectedCrate || !currentUser) return;
 
-    const updated: CrateLineItem = {
-      ...selectedCrate,
-      kg: editedKg,
-      size: editedSize,
-      status: 'rechecked',
-      modifiedBy: currentUser.id,
-      modifiedAt: new Date().toISOString(),
-    };
+    try {
+      const response = await axios.put(`/api/crates/${selectedCrate.id}`, {
+        kg: editedKg,
+        size: editedSize,
+        status: 'rechecked',
+      });
 
-    updateCrate(updated);
-    setSelectedCrate(updated);
+      const updated = response.data;
+      setSelectedCrate(updated);
+      
+      // Refresh the crates list
+      await fetchReceivedCrates();
+      
+      toast.success('Crate rechecked successfully!', {
+        description: `Crate #${selectedCrate.crateNumber} has been updated.`,
+      });
+    } catch (error) {
+      console.error('Error rechecking crate:', error);
+      toast.error('Failed to recheck crate', {
+        description: 'Please try again.',
+      });
+    }
   };
 
-  const handleStore = () => {
+  const handleStore = async () => {
     if (!selectedCrate || !selectedTank || !currentUser) return;
 
-    if (storageType === 'crate') {
-      // Store as crate in tank
-      const updated: CrateLineItem = {
-        ...selectedCrate,
-        tankId: selectedTank,
-        status: 'stored',
-        modifiedBy: currentUser.id,
-        modifiedAt: new Date().toISOString(),
-      };
-      updateCrate(updated);
-    } else {
-      // Empty crate into loose stock
-      const looseStock: LooseStock = {
-        id: `loose-${Date.now()}`,
-        tankId: selectedTank,
-        size: selectedCrate.size,
-        kg: selectedCrate.kg,
-        fromCrateId: selectedCrate.id,
-        boatName: selectedCrate.boatName,
-        offloadDate: selectedCrate.offloadDate,
-        createdBy: currentUser.id,
-        createdAt: new Date().toISOString(),
-      };
-      addLooseStock(looseStock);
+    setErrors({}); // Clear previous errors
 
-      // Mark crate as emptied
-      const updated: CrateLineItem = {
-        ...selectedCrate,
-        tankId: selectedTank,
-        status: 'emptied',
-        modifiedBy: currentUser.id,
-        modifiedAt: new Date().toISOString(),
-      };
-      updateCrate(updated);
+    try {
+      if (storageType === 'crate') {
+        // Store as crate in tank
+        await axios.put(`/api/crates/${selectedCrate.id}`, {
+          tankId: selectedTank,
+          status: 'stored',
+        });
+        
+        toast.success('Crate stored successfully!', {
+          description: `Crate #${selectedCrate.crateNumber} has been stored in the tank.`,
+        });
+      } else {
+        // Empty crate into loose stock
+        await axios.post('/api/loose-stock', {
+          tankId: selectedTank,
+          size: selectedCrate.size,
+          kg: selectedCrate.kg,
+          fromCrateId: selectedCrate.id,
+          boatName: selectedCrate.boatName,
+          offloadDate: selectedCrate.offloadDate,
+        });
+
+        // Mark crate as emptied
+        await axios.put(`/api/crates/${selectedCrate.id}`, {
+          tankId: selectedTank,
+          status: 'emptied',
+        });
+        
+        toast.success('Crate emptied successfully!', {
+          description: `Crate #${selectedCrate.crateNumber} has been emptied into loose stock.`,
+        });
+      }
+
+      // Refresh the crates list
+      await fetchReceivedCrates();
+      
+      setSelectedCrate(null);
+      setSelectedTank('');
+    } catch (error: any) {
+      console.error('Error storing crate:', error);
+      
+      // Check if it's a Laravel validation error (422 status)
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        // Laravel returns arrays of error messages, take the first one for each field
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key]) 
+            ? validationErrors[key][0] 
+            : validationErrors[key];
+        });
+        setErrors(formattedErrors);
+      } else {
+        toast.error('Failed to store crate', {
+          description: 'Please try again.',
+        });
+      }
     }
-
-    setSelectedCrate(null);
-    setSelectedTank('');
   };
 
   return (
@@ -91,42 +168,48 @@ export function RecheckProcess() {
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="mb-4">Received Crates</h2>
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
-            {receivedCrates.map(crate => (
-              <div
-                key={crate.id}
-                onClick={() => handleSelectCrate(crate)}
-                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                  selectedCrate?.id === crate.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      <span>Crate #{crate.crateNumber}</span>
-                      {crate.status === 'rechecked' && (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                          Rechecked
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {crate.boatName} - {crate.offloadDate}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p>Size {crate.size}</p>
-                    <p className="text-sm text-gray-600">{crate.kg.toFixed(2)} kg</p>
-                  </div>
-                </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-2 text-gray-600">Loading crates...</span>
               </div>
-            ))}
-            {receivedCrates.length === 0 && (
+            ) : receivedCrates.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
                 No crates to recheck. Create a receiving batch first.
               </p>
+            ) : (
+              receivedCrates.map(crate => (
+                <div
+                  key={crate.id}
+                  onClick={() => handleSelectCrate(crate)}
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedCrate?.id === crate.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4" />
+                        <span>Crate #{crate.crateNumber}</span>
+                        {crate.status === 'rechecked' && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                            Rechecked
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {crate.boatName} - {crate.offloadDate}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p>Size {crate.size}</p>
+                      <p className="text-sm text-gray-600">{parseFloat(crate.kg).toFixed(2)} kg</p>
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -142,7 +225,7 @@ export function RecheckProcess() {
                 <p>Boat: {selectedCrate.boatName}</p>
                 <p>Offload Date: {selectedCrate.offloadDate}</p>
                 <p>Original Size: {selectedCrate.originalSize}</p>
-                <p>Original Weight: {selectedCrate.originalKg.toFixed(2)} kg</p>
+                <p>Original Weight: {(typeof selectedCrate.originalKg === 'number' ? selectedCrate.originalKg : parseFloat(selectedCrate.originalKg)).toFixed(2)} kg</p>
               </div>
 
               <div className="border-t pt-4">
@@ -197,16 +280,24 @@ export function RecheckProcess() {
                     <label className="block text-sm text-gray-600 mb-1">Tank</label>
                     <select
                       value={selectedTank}
-                      onChange={(e) => setSelectedTank(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      onChange={(e) => {
+                        setSelectedTank(e.target.value);
+                        if (errors.tankId) {
+                          const newErrors = { ...errors };
+                          delete newErrors.tankId;
+                          setErrors(newErrors);
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg ${errors.tankId ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                     >
                       <option value="">Select tank</option>
-                      {tanks.filter(t => t.active).map(tank => (
+                      {tanks.filter(t => t.active == 1 || t.active === true).map(tank => (
                         <option key={tank.id} value={tank.id}>
                           {tank.name}
                         </option>
                       ))}
                     </select>
+                    {errors.tankId && <p className="text-red-600 text-sm mt-1 font-medium">{errors.tankId}</p>}
                   </div>
                   <button
                     onClick={handleStore}

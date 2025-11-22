@@ -11,6 +11,7 @@ import { ReportsView } from './components/ReportsView';
 import { LossAdjustment } from './components/LossAdjustment';
 import { SettingsView } from './components/SettingsView';
 import { BrowserRouter } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -178,6 +179,7 @@ export default function App() {
     <BrowserRouter>
       <DataProvider>
         <MainApp />
+           <Toaster position="top-right" richColors />
       </DataProvider>
     </BrowserRouter>
   );

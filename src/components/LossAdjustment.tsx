@@ -1,52 +1,80 @@
 import React, { useState } from 'react';
-import { useData } from '../context/DataContext';
+import axios from '../lib/axios';
 import { Loss, SizeCategory } from '../types';
-import { AlertTriangle, Plus } from 'lucide-react';
-
+import { AlertTriangle, Plus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 export function LossAdjustment() {
-  const { currentUser, losses, getAllTankStock, addLoss } = useData();
   const [showForm, setShowForm] = useState(false);
   const [lossType, setLossType] = useState<'dead' | 'rotten' | 'lost'>('dead');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTank, setSelectedTank] = useState('');
   const [selectedItem, setSelectedItem] = useState<{
     crateId?: string;
-    looseStockId?: string;
     size: SizeCategory;
     maxKg: number;
   } | null>(null);
+  const [crates, setCrates] = useState<any[]>([]);
+  const [cratesLoading, setCratesLoading] = useState(false);
   const [kg, setKg] = useState(0);
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [losses, setLosses] = useState<Loss[]>([]);
+  const [allTankStock, setAllTankStock] = useState<any[]>([]); // still used for tank list
+  const currentUser = { id: 'admin' }; // Replace with real user if available
 
-  const allTankStock = getAllTankStock();
-  const tankStock = selectedTank 
-    ? allTankStock.find(t => t.tankId === selectedTank)
-    : null;
+  React.useEffect(() => {
+    // Fetch losses and tanks on mount
+    axios.get('/api/loss-adjustments').then(res => setLosses(res.data.data || []));
+    axios.get('/api/tanks').then(res => setAllTankStock(res.data.data || []));
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  // Fetch crates for selected tank
+  React.useEffect(() => {
+    if (!selectedTank) {
+      setCrates([]);
+      return;
+    }
+    setCratesLoading(true);
+    axios.get(`/api/tanks/${selectedTank}/crates`)
+      .then(res => setCrates(res.data.data || []))
+      .catch(() => setCrates([]))
+      .finally(() => setCratesLoading(false));
+  }, [selectedTank]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !selectedItem) return;
-
-    const loss: Loss = {
-      id: `loss-${Date.now()}`,
-      date,
-      type: lossType,
-      tankId: selectedTank,
-      crateId: selectedItem.crateId,
-      looseStockId: selectedItem.looseStockId,
-      size: selectedItem.size,
-      kg,
-      notes,
-      createdBy: currentUser.id,
-      createdAt: new Date().toISOString(),
-    };
-
-    addLoss(loss);
-    setShowForm(false);
-    setSelectedTank('');
-    setSelectedItem(null);
-    setKg(0);
-    setNotes('');
+    setSubmitting(true);
+    try {
+      await axios.post('/api/loss-adjustments', {
+        date,
+        type: lossType,
+        tankId: selectedTank,
+        crateId: selectedItem.crateId,
+        looseStockId: selectedItem.looseStockId,
+        size: selectedItem.size,
+        kg,
+        notes,
+        createdBy: currentUser.id,
+      });
+      setShowForm(false);
+      setSelectedTank('');
+      setSelectedItem(null);
+      setKg(0);
+      setNotes('');
+      // Refresh losses if needed
+    } catch (err: any) {
+      // Try to extract server message and error
+      const message = err?.response?.data?.message;
+      const errorDetail = err?.response?.data?.error;
+      toast.info(message || 'Failed to save loss adjustment.', {
+        description: errorDetail,
+        duration: 5000,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -105,7 +133,7 @@ export function LossAdjustment() {
                 >
                   <option value="">Select tank</option>
                   {allTankStock.map(tank => (
-                    <option key={tank.tankId} value={tank.tankId}>
+                    <option key={tank.tankId} value={tank.id}>
                       {tank.tankName}
                     </option>
                   ))}
@@ -113,63 +141,47 @@ export function LossAdjustment() {
               </div>
             </div>
 
-            {tankStock && (
+            {selectedTank && (
               <div className="border-t pt-4">
-                <h3 className="mb-3">Select Item</h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {/* Crates */}
-                  {tankStock.crates.map(crate => (
-                    <div
-                      key={crate.id}
-                      onClick={() => setSelectedItem({
-                        crateId: crate.id,
-                        size: crate.size,
-                        maxKg: crate.kg,
-                      })}
-                      className={`p-3 border rounded-lg cursor-pointer ${
-                        selectedItem?.crateId === crate.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      <div className="flex justify-between">
-                        <span>Crate #{crate.crateNumber} - Size {crate.size}</span>
-                        <span>{crate.kg.toFixed(2)} kg</span>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Loose Stock */}
-                  {tankStock.looseStock.map(stock => (
-                    <div
-                      key={stock.id}
-                      onClick={() => setSelectedItem({
-                        looseStockId: stock.id,
-                        size: stock.size,
-                        maxKg: stock.kg,
-                      })}
-                      className={`p-3 border rounded-lg cursor-pointer ${
-                        selectedItem?.looseStockId === stock.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-300'
-                      }`}
-                    >
-                      <div className="flex justify-between">
-                        <span>Loose Stock - Size {stock.size}</span>
-                        <span>{stock.kg.toFixed(2)} kg</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="mb-3">Select Crate</h3>
+                {cratesLoading ? (
+                  <div className="text-gray-500">Loading crates...</div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {crates.length === 0 ? (
+                      <div className="text-gray-500">No crates found for this tank.</div>
+                    ) : (
+                      crates.map((crate: any) => (
+                        <div
+                          key={crate.id}
+                          onClick={() => setSelectedItem({
+                            crateId: crate.id,
+                            size: crate.size,
+                            maxKg: crate.kg,
+                          })}
+                          className={`p-3 border rounded-lg cursor-pointer ${selectedItem?.crateId === crate.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-300 hover:border-blue-300'
+                            }`}
+                        >
+                          <div className="flex justify-between">
+                            <span>Crate #{crate.crateNumber} - Size {crate.size}</span>
+                            <span>{crate.kg?.toFixed ? crate.kg.toFixed(2) : crate.kg} kg</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {selectedItem && (
+            {selectedItem !== null && (
               <div className="border-t pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">
-                      Loss Amount (kg) - Max: {selectedItem.maxKg.toFixed(2)}
+                      Loss Amount (kg) - Max: {typeof selectedItem.maxKg === 'number' && !isNaN(selectedItem.maxKg) ? selectedItem.maxKg.toFixed(2) : selectedItem.maxKg}
                     </label>
                     <input
                       type="number"
@@ -206,9 +218,10 @@ export function LossAdjustment() {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={!selectedItem || kg <= 0}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300"
+                disabled={!selectedItem || kg <= 0 || submitting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 flex items-center gap-2"
               >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Record Loss
               </button>
               <button
@@ -243,11 +256,10 @@ export function LossAdjustment() {
                 <tr key={loss.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="px-4 py-3">{loss.date}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      loss.type === 'dead' ? 'bg-red-100 text-red-800' :
-                      loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 py-1 rounded text-xs ${loss.type === 'dead' ? 'bg-red-100 text-red-800' :
+                        loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
+                          'bg-gray-100 text-gray-800'
+                      }`}>
                       {loss.type}
                     </span>
                   </td>

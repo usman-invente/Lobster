@@ -1,31 +1,37 @@
+
+
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { LogIn, Anchor } from 'lucide-react';
 
 export function Login() {
-  const { users, setCurrentUser } = useData();
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const navigate = useNavigate();
+  const { setCurrentUser } = useData();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedUserId) {
-      setError('Please select a user');
+    if (!username || !password) {
+      setError('Please enter both username and password');
       return;
     }
-
-    const user = users.find(u => u.id === selectedUserId);
-    if (user) {
-      setCurrentUser(user);
-      // Save current user to localStorage
-      localStorage.setItem('currentUserId', user.id);
-    } else {
-      setError('User not found');
-    }
+    setError('');
+    // Set a dummy user in context
+    setCurrentUser({
+      id: 'user-login',
+      name: username,
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem('currentUserId', 'user-login');
+    navigate('/dashboard');
   };
 
   return (
+
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Title */}
@@ -41,29 +47,31 @@ export function Login() {
         <div className="bg-white rounded-lg shadow-xl p-8">
           <div className="mb-6">
             <h2 className="text-xl text-gray-900 mb-2">Welcome Back</h2>
-            <p className="text-sm text-gray-600">Please select your account to continue</p>
+            <p className="text-sm text-gray-600">Please enter your credentials to continue</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm text-gray-700 mb-2">
-                Select User
-              </label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => {
-                  setSelectedUserId(e.target.value);
-                  setError('');
-                }}
+              <label className="block text-sm text-gray-700 mb-2">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">-- Choose a user --</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.role})
-                  </option>
-                ))}
-              </select>
+                placeholder="Enter username"
+                autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter password"
+                autoComplete="current-password"
+              />
             </div>
 
             {error && (
@@ -80,14 +88,6 @@ export function Login() {
               Sign In
             </button>
           </form>
-
-          {users.length === 0 && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                No users found. A default admin user will be created automatically.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

@@ -10,6 +10,7 @@ import { DispatchManagement } from './components/DispatchManagement';
 import { ReportsView } from './components/ReportsView';
 import { LossAdjustment } from './components/LossAdjustment';
 import { SettingsView } from './components/SettingsView';
+import { BrowserRouter } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -174,8 +175,10 @@ function MainApp() {
 
 export default function App() {
   return (
-    <DataProvider>
-      <MainApp />
-    </DataProvider>
+    <BrowserRouter>
+      <DataProvider>
+        <MainApp />
+      </DataProvider>
+    </BrowserRouter>
   );
 }

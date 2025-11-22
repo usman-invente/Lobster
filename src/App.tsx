@@ -14,7 +14,7 @@ import { DispatchManagement } from './components/DispatchManagement';
 import { ReportsView } from './components/ReportsView';
 import { LossAdjustment } from './components/LossAdjustment';
 import { SettingsView } from './components/SettingsView';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { 
   LayoutDashboard, 
@@ -46,9 +46,10 @@ type Page =
 function MainApp() {
   const user = useSelector((state: RootState) => state.user.user);
   const dispatch = store.dispatch;
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [checkingUser, setCheckingUser] = React.useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   React.useEffect(() => {
     const token = localStorage.getItem('token');
@@ -71,7 +72,13 @@ function MainApp() {
     }
   }, [user, dispatch]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const axios = (await import('./lib/axios')).default;
+      await axios.post('/api/logout');
+    } catch (e) {
+      // Ignore errors, proceed to clear token
+    }
     localStorage.removeItem('token');
     window.location.reload();
   };
@@ -96,41 +103,26 @@ function MainApp() {
   }
 
   const menuItems = [
-    { id: 'dashboard' as Page, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'offload' as Page, label: 'Offload Records', icon: FileText },
-    { id: 'receiving' as Page, label: 'Receiving', icon: Package },
-    { id: 'recheck' as Page, label: 'Recheck & Store', icon: CheckCircle },
-    { id: 'tanks' as Page, label: 'Tank Management', icon: Database },
-    { id: 'dispatch' as Page, label: 'Dispatch', icon: Send },
-    { id: 'reports' as Page, label: 'Reports', icon: BarChart3 },
-    { id: 'losses' as Page, label: 'Loss Adjustment', icon: AlertTriangle },
-    { id: 'settings' as Page, label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', permission: 'dashboard' },
+    { id: 'offload', label: 'Offload Records', icon: FileText, path: '/offload', permission: 'offload' },
+    { id: 'receiving', label: 'Receiving', icon: Package, path: '/receiving', permission: 'receiving' },
+    { id: 'recheck', label: 'Recheck & Store', icon: CheckCircle, path: '/recheck', permission: 'recheck' },
+    { id: 'tanks', label: 'Tank Management', icon: Database, path: '/tanks', permission: 'tanks' },
+    { id: 'dispatch', label: 'Dispatch', icon: Send, path: '/dispatch', permission: 'dispatch' },
+    { id: 'reports', label: 'Reports', icon: BarChart3, path: '/reports', permission: 'reports' },
+    { id: 'losses', label: 'Loss Adjustment', icon: AlertTriangle, path: '/losses', permission: 'losses' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings', permission: 'settings' },
   ];
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'offload':
-        return <OffloadManagement />;
-      case 'receiving':
-        return <ReceivingManagement />;
-      case 'recheck':
-        return <RecheckProcess />;
-      case 'tanks':
-        return <TankManagement />;
-      case 'dispatch':
-        return <DispatchManagement />;
-      case 'reports':
-        return <ReportsView />;
-      case 'losses':
-        return <LossAdjustment />;
-      case 'settings':
-        return <SettingsView />;
-      default:
-        return <Dashboard />;
-    }
-  };
+  // No longer needed: renderPage
+
+  // Filter menu items based on user permissions (admin sees all)
+  let filteredMenuItems = menuItems;
+  if (user && user.role !== 'admin' && Array.isArray(user.permissions)) {
+    filteredMenuItems = menuItems.filter(item =>
+      !item.permission || user.permissions.includes(item.permission)
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -165,17 +157,18 @@ function MainApp() {
         </div>
         
         <nav className="px-3 flex-1 overflow-y-auto">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.id}
                 onClick={() => {
-                  setCurrentPage(item.id);
+                  navigate(item.path);
                   setMobileMenuOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg transition-colors ${
-                  currentPage === item.id
+                  isActive
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -210,7 +203,18 @@ function MainApp() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {renderPage()}
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/offload" element={<OffloadManagement />} />
+          <Route path="/receiving" element={<ReceivingManagement />} />
+          <Route path="/recheck" element={<RecheckProcess />} />
+          <Route path="/tanks" element={<TankManagement />} />
+          <Route path="/dispatch" element={<DispatchManagement />} />
+          <Route path="/reports" element={<ReportsView />} />
+          <Route path="/losses" element={<LossAdjustment />} />
+          <Route path="/settings" element={<SettingsView />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </div>
     </div>
   );

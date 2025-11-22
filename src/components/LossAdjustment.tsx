@@ -3,6 +3,8 @@ import axios from '../lib/axios';
 import { Loss, SizeCategory } from '../types';
 import { AlertTriangle, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 export function LossAdjustment() {
   const [showForm, setShowForm] = useState(false);
   const [lossType, setLossType] = useState<'dead' | 'rotten' | 'lost'>('dead');
@@ -20,7 +22,7 @@ export function LossAdjustment() {
   const [submitting, setSubmitting] = useState(false);
   const [losses, setLosses] = useState<Loss[]>([]);
   const [allTankStock, setAllTankStock] = useState<any[]>([]); // still used for tank list
-  const currentUser = { id: 'admin' }; // Replace with real user if available
+  const currentUser = useSelector((state: RootState) => state.user.user);
 
   React.useEffect(() => {
     // Fetch losses and tanks on mount
@@ -44,7 +46,7 @@ export function LossAdjustment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !selectedItem) return;
+  if (!currentUser || !selectedItem) return;
     setSubmitting(true);
     try {
       await axios.post('/api/loss-adjustments', {
@@ -56,7 +58,7 @@ export function LossAdjustment() {
         size: selectedItem.size,
         kg,
         notes,
-        createdBy: currentUser.id,
+  createdBy: currentUser.id,
       });
       setShowForm(false);
       setSelectedTank('');

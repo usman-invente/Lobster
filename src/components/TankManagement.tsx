@@ -27,9 +27,13 @@ export function TankManagement() {
   }, []);
 
   // Find selected tank from already-fetched tanks
-  const selectedTank = selectedTankId
+  let selectedTank = selectedTankId
     ? Array.isArray(tanks) && tanks.find((t: any) => String(t.id) === String(selectedTankId))
     : null;
+  // Map loose_stock to looseStock for compatibility
+  if (selectedTank && Array.isArray(selectedTank.loose_stock)) {
+    selectedTank = { ...selectedTank, looseStock: selectedTank.loose_stock };
+  }
 
   return (
     <div className="p-4 md:p-6">
@@ -154,7 +158,7 @@ export function TankManagement() {
                         <tr key={idx}>
                           <td className="px-4 py-2">{stock.size}</td>
                           <td className="px-4 py-2">{stock.boat}</td>
-                          <td className="px-4 py-2">{stock.offloadDate}</td>
+                          <td className="px-4 py-2">{stock.offloadDate ? String(stock.offloadDate).slice(0, 10) : ''}</td>
                           <td className="px-4 py-2 text-right">{stock.kg?.toFixed ? stock.kg.toFixed(2) : stock.kg}</td>
                         </tr>
                       ))

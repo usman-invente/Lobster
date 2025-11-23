@@ -462,15 +462,25 @@ export function DispatchManagement() {
           {/* Search and Filters */}
           <div className="bg-white p-4 rounded-lg shadow-md mb-6">
             <div className="flex items-center gap-4">
-              <div className="flex-1 relative flex items-center">
-                <Search className="absolute left-3 text-gray-400 w-4 h-4" />
+              <div className="flex-1 relative flex items-center group">
+              
                 <input
                   type="text"
                   placeholder="Search by type, client/AWB, or date..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full pl-12 pr-12 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 text-sm placeholder-gray-400 shadow-sm hover:border-gray-300"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <label className="text-sm text-gray-600">Show:</label>

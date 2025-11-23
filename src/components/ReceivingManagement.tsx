@@ -247,7 +247,7 @@ export function ReceivingManagement() {
   const handleEditClick = (batch: any) => {
     setEditBatch(batch);
     setEditForm({
-      date: batch.date,
+      date: batch.date ? new Date(batch.date).toISOString().split('T')[0] : '',
       batchNumber: batch.batchNumber,
       lineItems: batch.crates || []
     });

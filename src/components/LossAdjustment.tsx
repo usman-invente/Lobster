@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from '../lib/axios';
 import { Loss, SizeCategory } from '../types';
-import { AlertTriangle, Plus, Loader2 } from 'lucide-react';
+import { AlertTriangle, Plus, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -14,15 +14,71 @@ export function LossAdjustment() {
     crateId?: string;
     size: SizeCategory;
     maxKg: number;
+    looseStockId?: string;
   } | null>(null);
   const [crates, setCrates] = useState<any[]>([]);
   const [cratesLoading, setCratesLoading] = useState(false);
   const [kg, setKg] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [losses, setLosses] = useState<Loss[]>([]);
   const [allTankStock, setAllTankStock] = useState<any[]>([]); // still used for tank list
   const currentUser = useSelector((state: RootState) => state.user.user);
+  // Table features
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [sortColumn, setSortColumn] = useState('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Debounced search (local filtering for now)
+  React.useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // Sorting handler
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Filter, sort, and paginate losses
+  const filteredLosses = losses.filter(loss => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (loss.date && loss.date.toLowerCase().includes(q)) ||
+      (loss.type && loss.type.toLowerCase().includes(q)) ||
+      (loss.size && loss.size.toLowerCase().includes(q)) ||
+      (loss.reason && loss.reason.toLowerCase().includes(q)) ||
+      (loss.createdBy && loss.createdBy.toLowerCase().includes(q))
+    );
+  });
+  const sortedLosses = [...filteredLosses].sort((a, b) => {
+    let aVal = a[sortColumn as keyof Loss];
+    let bVal = b[sortColumn as keyof Loss];
+    if (sortColumn === 'kg') {
+      aVal = Number(aVal);
+      bVal = Number(bVal);
+    }
+    if (aVal === undefined || bVal === undefined) return 0;
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+  const totalRecords = sortedLosses.length;
+  const totalPages = Math.ceil(totalRecords / perPage) || 1;
+  const startRecord = (currentPage - 1) * perPage + 1;
+  const endRecord = Math.min(currentPage * perPage, totalRecords);
+  const pagedLosses = sortedLosses.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   React.useEffect(() => {
     // Fetch losses and tanks on mount
@@ -57,14 +113,14 @@ export function LossAdjustment() {
         looseStockId: selectedItem.looseStockId,
         size: selectedItem.size,
         kg,
-        notes,
+        reason,
   createdBy: currentUser.id,
       });
       setShowForm(false);
       setSelectedTank('');
       setSelectedItem(null);
       setKg(0);
-      setNotes('');
+      setReason('');
       // Refresh losses if needed
     } catch (err: any) {
       // Try to extract server message and error
@@ -208,8 +264,8 @@ export function LossAdjustment() {
                 <div className="mt-4">
                   <label className="block text-sm text-gray-600 mb-1">Notes</label>
                   <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
@@ -238,58 +294,161 @@ export function LossAdjustment() {
         </div>
       )}
 
-      {/* Loss History */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      {/* Loss History - with search, sort, pagination, loading */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden mt-8">
         <h3 className="p-4 border-b">Loss History</h3>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 px-4 py-2">
+          {/* <div className="relative w-full md:w-64">
+            <span className="absolute left-3 top-2.5 text-gray-400"><Search className="w-4 h-4" /></span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search losses..."
+              className="pl-9 pr-3 py-2 w-full border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div> */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Rows per page:</span>
+            <select
+              value={perPage}
+              onChange={e => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="border border-gray-300 rounded px-2 py-1"
+            >
+              {[10, 25, 50, 100].map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-sm text-gray-600">Date</th>
-                <th className="px-4 py-3 text-left text-sm text-gray-600">Type</th>
-                <th className="px-4 py-3 text-left text-sm text-gray-600">Size</th>
-                <th className="px-4 py-3 text-right text-sm text-gray-600">Kg</th>
+                <th
+                  className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('date')}
+                >
+                  <div className="flex items-center gap-1">
+                    Date {sortColumn === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('type')}
+                >
+                  <div className="flex items-center gap-1">
+                    Type {sortColumn === 'type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('size')}
+                >
+                  <div className="flex items-center gap-1">
+                    Size {sortColumn === 'size' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('kg')}
+                >
+                  <div className="flex items-center gap-1">
+                    Kg {sortColumn === 'kg' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Notes</th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Recorded By</th>
               </tr>
             </thead>
             <tbody>
-              {losses.map((loss, idx) => (
-                <tr key={loss.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-4 py-3">{
-                    loss.date && typeof loss.date === 'string'
-                      ? (loss.date.length >= 10 ? loss.date.substring(0, 10) : loss.date)
-                      : '-'
-                  }</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded text-xs ${loss.type === 'dead' ? 'bg-red-100 text-red-800' :
-                      loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
-                        'bg-gray-100 text-gray-800'
-                    }`}>
-                      {loss.type}
-                    </span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Loading losses...
+                    </div>
                   </td>
-                  <td className="px-4 py-3">{loss.size}</td>
-                  <td className="px-4 py-3 text-right">{
-                    (typeof loss.kg === 'number' && isFinite(loss.kg))
-                      ? loss.kg.toFixed(2)
-            : (typeof loss.kg === 'string' && !isNaN(Number(loss.kg)) && (loss.kg as string).trim() !== ''
-              ? Number(loss.kg).toFixed(2)
-              : '-')
-                  }</td>
-                  <td className="px-4 py-3">{loss.notes || '-'}</td>
-                  <td className="px-4 py-3">{loss.createdBy}</td>
                 </tr>
-              ))}
-              {losses.length === 0 && (
+              ) : pagedLosses.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     No losses recorded yet.
                   </td>
                 </tr>
+              ) : (
+                pagedLosses.map((loss, idx) => (
+                  <tr key={loss.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 py-3">{
+                      loss.date && typeof loss.date === 'string'
+                        ? (loss.date.length >= 10 ? loss.date.substring(0, 10) : loss.date)
+                        : '-'
+                    }</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded text-xs ${loss.type === 'dead' ? 'bg-red-100 text-red-800' :
+                        loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
+                          'bg-gray-100 text-gray-800'
+                      }`}>
+                        {loss.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{loss.size}</td>
+                    <td className="px-4 py-3">{
+                      (typeof loss.kg === 'number' && isFinite(loss.kg))
+                        ? loss.kg.toFixed(2)
+                        : (typeof loss.kg === 'string' && !isNaN(Number(loss.kg)) && (loss.kg as string).trim() !== ''
+                            ? Number(loss.kg).toFixed(2)
+                            : '-')
+                    }</td>
+                    <td className="px-4 py-3">{loss.reason || '-'}</td>
+                    <td className="px-4 py-3">{loss.createdBy}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
+        </div>
+        {/* Pagination */}
+        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing {pagedLosses.length > 0 ? startRecord : 0} to {endRecord} of {totalRecords} records
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <span className="px-3 py-1 text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Last
+            </button>
+          </div>
         </div>
       </div>
     </div>

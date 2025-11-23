@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCreateForm } from './UserCreateForm';
 import axios from '../lib/axios';
-import { Loader2, ChevronLeft, ChevronRight, Search, Pencil } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Search, Pencil, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { User, Tank } from '../types';
 import { Settings, Plus, UserCircle, Database } from 'lucide-react';
@@ -25,6 +25,18 @@ export function SettingsView() {
   const [userRole, setUserRole] = useState<'admin' | 'operator'>('operator');
   const [tankNumber, setTankNumber] = useState(0);
   const [tankName, setTankName] = useState('');
+  const [tanksFromApi, setTanksFromApi] = useState<any[]>([]);
+  const [isTanksLoading, setIsTanksLoading] = useState(false);
+  const [tankErrors, setTankErrors] = useState<Record<string, string>>({});
+  const [isTankSubmitting, setIsTankSubmitting] = useState(false);
+
+  // Server-side table state for tanks
+  const [tanksSearchQuery, setTanksSearchQuery] = useState('');
+  const [tanksCurrentPage, setTanksCurrentPage] = useState(1);
+  const [tanksPerPage, setTanksPerPage] = useState(10);
+  const [tanksTotalRecords, setTanksTotalRecords] = useState(0);
+  const [tanksSortColumn, setTanksSortColumn] = useState('number');
+  const [tanksSortDirection, setTanksSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -37,6 +49,17 @@ export function SettingsView() {
   });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  // Tank edit modal state
+  const [showTankEditModal, setShowTankEditModal] = useState(false);
+  const [editTank, setEditTank] = useState<any>(null);
+  const [editTankForm, setEditTankForm] = useState({
+    number: 0,
+    name: '',
+    active: true
+  });
+  const [isTankEditSubmitting, setIsTankEditSubmitting] = useState(false);
+  const [editTankErrors, setEditTankErrors] = useState<Record<string, string>>({});
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,22 +75,179 @@ export function SettingsView() {
     setUserRole('operator');
   };
 
-  const handleAddTank = (e: React.FormEvent) => {
-    e.preventDefault();
-    const tank: Tank = {
-      id: `tank-${Date.now()}`,
-      number: tankNumber,
-      name: tankName,
-      active: true,
-    };
-    addTank(tank);
-    setShowTankForm(false);
-    setTankNumber(0);
-    setTankName('');
+  // Fetch tanks from API with server-side features
+  const fetchTanks = async () => {
+    setIsTanksLoading(true);
+    try {
+      const response = await axios.get('/api/tanks?page=thanks', {
+        params: {
+          page: tanksCurrentPage,
+          per_page: tanksPerPage,
+          search: tanksSearchQuery,
+          sort_by: tanksSortColumn,
+          sort_direction: tanksSortDirection,
+        }
+      });
+
+      // Handle response - expecting { data: [...], meta: {...} }
+      const tanks = response.data.data || [];
+      const pagination = response.data.meta || { total: 0 };
+
+      if (!Array.isArray(tanks)) {
+        console.error('Expected array in response.data.data, got:', typeof tanks);
+        setTanksFromApi([]);
+        setTanksTotalRecords(0);
+        setIsTanksLoading(false);
+        return;
+      }
+
+      setTanksFromApi(tanks);
+      setTanksTotalRecords(pagination.total || tanks.length);
+    } catch (error) {
+      console.error('Error fetching tanks:', error);
+      toast.error('Failed to load tanks');
+    } finally {
+      setIsTanksLoading(false);
+    }
   };
 
-  const handleToggleTank = (tank: Tank) => {
-    updateTank({ ...tank, active: !tank.active });
+  // Load tanks on component mount and when filters change
+  useEffect(() => {
+    if (activeTab === 'tanks') {
+      fetchTanks();
+    }
+  }, [activeTab, tanksCurrentPage, tanksPerPage, tanksSearchQuery, tanksSortColumn, tanksSortDirection]);
+
+  // Handle tanks search with debounce
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setTanksCurrentPage(1); // Reset to first page on new search
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [tanksSearchQuery]);
+
+  // Handle add tank via API
+  const handleAddTank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsTankSubmitting(true);
+    setTankErrors({});
+
+    try {
+      await axios.post('/api/tanks', {
+        number: tankNumber,
+        name: tankName,
+      });
+
+      toast.success('Tank added successfully!');
+      setShowTankForm(false);
+      setTankNumber(0);
+      setTankName('');
+      fetchTanks(); // Refresh the list
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key])
+            ? validationErrors[key][0]
+            : validationErrors[key];
+        });
+        setTankErrors(formattedErrors);
+      } else {
+        toast.error('Failed to add tank');
+      }
+    } finally {
+      setIsTankSubmitting(false);
+    }
+  };
+
+  // Handle toggle tank status via API
+  const handleToggleTank = async (tank: any) => {
+    try {
+      await axios.patch(`/api/tanks/${tank.id}/toggle`);
+      toast.success(`Tank ${tank.status == 1 ? 'deactivated' : 'activated'} successfully!`);
+      fetchTanks(); // Refresh the list
+    } catch (error) {
+      toast.error('Failed to update tank status');
+    }
+  };
+
+  // Open tank edit modal and populate form
+  const handleEditTankClick = (tank: any) => {
+    setEditTank(tank);
+    setEditTankForm({
+      number: tank.tankNumber || tank.number,
+      name: tank.tankName || tank.name,
+      active: tank.status == 1 || tank.active
+    });
+    setEditTankErrors({});
+    setShowTankEditModal(true);
+  };
+
+  // Handle tank edit form change
+  const handleEditTankChange = (field: string, value: any) => {
+    setEditTankForm((prev: any) => ({ ...prev, [field]: value }));
+    if (editTankErrors[field]) setEditTankErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  // Submit tank edit
+  const handleEditTankSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTank) return;
+    setIsTankEditSubmitting(true);
+    setEditTankErrors({});
+    
+    try {
+      await axios.put(`/api/tanks/${editTank.id}`, editTankForm);
+      toast.success('Tank updated successfully!');
+      setShowTankEditModal(false);
+      setEditTank(null);
+      fetchTanks();
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key])
+            ? validationErrors[key][0]
+            : validationErrors[key];
+        });
+        setEditTankErrors(formattedErrors);
+      } else {
+        toast.error('Failed to update tank');
+      }
+    } finally {
+      setIsTankEditSubmitting(false);
+    }
+  };
+
+  // Handle tanks sort
+  const handleTanksSort = (column: string) => {
+    if (tanksSortColumn === column) {
+      setTanksSortDirection(tanksSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTanksSortColumn(column);
+      setTanksSortDirection('asc');
+    }
+  };
+
+  // Calculate tanks pagination
+  const tanksTotalPages = Math.ceil(tanksTotalRecords / tanksPerPage);
+  const tanksStartRecord = (tanksCurrentPage - 1) * tanksPerPage + 1;
+  const tanksEndRecord = Math.min(tanksCurrentPage * tanksPerPage, tanksTotalRecords);
+
+  // Handle tank delete
+  const handleDeleteTank = async (tank: any) => {
+    if (!window.confirm(`Are you sure you want to delete tank "${tank.tankName || tank.name}"? This action cannot be undone.`)) return;
+
+    try {
+      await axios.delete(`/api/tanks/${tank.id}`);
+      toast.success('Tank deleted successfully!');
+      fetchTanks();
+    } catch (error) {
+      toast.error('Failed to delete tank');
+    }
   };
 
   // Open edit modal and populate form
@@ -252,9 +432,9 @@ export function SettingsView() {
             <div className="bg-white p-4 rounded-lg shadow-md mb-6">
               <div className="flex items-center gap-4">
                 <div className="flex-1 relative flex items-center group">
-                  <div className="absolute left-4 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200">
+                  {/* <div className="absolute left-4 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200">
                     <Search className="w-5 h-5" />
-                  </div>
+                  </div> */}
                   <input
                     type="text"
                     placeholder="Search by name, email"
@@ -433,8 +613,11 @@ export function SettingsView() {
         {/* Tanks Tab */}
         {activeTab === 'tanks' && (
           <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2>Tank Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="flex items-center gap-2">
+                <Database className="w-6 h-6" />
+                Tank Management
+              </h2>
               <button
                 onClick={() => setShowTankForm(!showTankForm)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -442,6 +625,48 @@ export function SettingsView() {
                 <Plus className="w-4 h-4" />
                 Add Tank
               </button>
+            </div>
+
+            {/* Search and Filters for Tanks */}
+            <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative flex items-center group">
+                  {/* <Search className="absolute left-4 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200" /> */}
+                  <input
+                    type="text"
+                    placeholder="Search by tank number or name..."
+                    value={tanksSearchQuery}
+                    onChange={(e) => setTanksSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-12 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 text-sm placeholder-gray-400 shadow-sm hover:border-gray-300"
+                  />
+                  {tanksSearchQuery && (
+                    <button
+                      onClick={() => setTanksSearchQuery('')}
+                      className="absolute right-4 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <label className="text-sm text-gray-600">Show:</label>
+                  <select
+                    value={tanksPerPage}
+                    onChange={(e) => {
+                      setTanksPerPage(Number(e.target.value));
+                      setTanksCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {showTankForm && (
@@ -455,9 +680,14 @@ export function SettingsView() {
                         type="number"
                         required
                         value={tankNumber}
-                        onChange={(e) => setTankNumber(parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        onChange={(e) => {
+                          setTankNumber(parseInt(e.target.value) || 0);
+                          if (tankErrors.number) setTankErrors((prev) => ({ ...prev, number: '' }));
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${tankErrors.number ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                        disabled={isTankSubmitting}
                       />
+                      {tankErrors.number && <p className="text-red-600 text-sm mt-1 font-medium">{tankErrors.number}</p>}
                     </div>
                     <div>
                       <label className="block text-sm text-gray-600 mb-1">Tank Name</label>
@@ -465,22 +695,36 @@ export function SettingsView() {
                         type="text"
                         required
                         value={tankName}
-                        onChange={(e) => setTankName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        onChange={(e) => {
+                          setTankName(e.target.value);
+                          if (tankErrors.name) setTankErrors((prev) => ({ ...prev, name: '' }));
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${tankErrors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                        disabled={isTankSubmitting}
                       />
+                      {tankErrors.name && <p className="text-red-600 text-sm mt-1 font-medium">{tankErrors.name}</p>}
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      disabled={isTankSubmitting}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
                     >
-                      Add Tank
+                      {isTankSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        'Add Tank'
+                      )}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowTankForm(false)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      disabled={isTankSubmitting}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
                       Cancel
                     </button>
@@ -500,33 +744,57 @@ export function SettingsView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tanks.sort((a, b) => a.number - b.number).map((tank, idx) => (
-                    <tr key={tank.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3">{tank.number}</td>
-                      <td className="px-4 py-3">{tank.name}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          tank.active 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {tank.active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleToggleTank(tank)}
-                          className={`px-3 py-1 rounded text-xs ${
-                            tank.active
-                              ? 'bg-red-600 text-white hover:bg-red-700'
-                              : 'bg-green-600 text-white hover:bg-green-700'
-                          }`}
-                        >
-                          {tank.active ? 'Deactivate' : 'Activate'}
-                        </button>
+                  {isTanksLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Loading tanks...
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : tanksFromApi.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        No tanks found.
+                      </td>
+                    </tr>
+                  ) : (
+                    tanksFromApi.sort((a: any, b: any) => a.number - b.number).map((tank: any, idx: number) => (
+                      <tr key={tank.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3">{tank.tankNumber}</td>
+                        <td className="px-4 py-3">{tank.tankName}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            tank.status == 1
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {tank.status == 1  ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              title="Edit Tank"
+                              onClick={() => handleEditTankClick(tank)}
+                              className="text-blue-600 hover:text-blue-800 p-1"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              title="Delete Tank"
+                              onClick={() => handleDeleteTank(tank)}
+                              className="text-red-600 hover:text-red-800 p-1"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                           
+                          </div>
+                        </td>
+                    </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -610,6 +878,93 @@ export function SettingsView() {
                   type="button"
                   onClick={() => setShowEditModal(false)}
                   disabled={isEditSubmitting}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tank Edit Modal */}
+      {showTankEditModal && editTank && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-semibold">Edit Tank</h2>
+              <button
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => { setShowTankEditModal(false); setEditTank(null); }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={handleEditTankSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Tank Number</label>
+                  <input
+                    type="number"
+                    required
+                    value={editTankForm.number}
+                    onChange={(e) => handleEditTankChange('number', parseInt(e.target.value) || 0)}
+                    className={`w-full px-3 py-2 border rounded-lg ${editTankErrors.number ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isTankEditSubmitting}
+                  />
+                  {editTankErrors.number && <p className="text-red-600 text-sm mt-1 font-medium">{editTankErrors.number}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Tank Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editTankForm.name}
+                    onChange={(e) => handleEditTankChange('name', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${editTankErrors.name ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isTankEditSubmitting}
+                  />
+                  {editTankErrors.name && <p className="text-red-600 text-sm mt-1 font-medium">{editTankErrors.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Status</label>
+                  <select
+                    value={editTankForm.active ? 'active' : 'inactive'}
+                    onChange={(e) => handleEditTankChange('active', e.target.value === 'active')}
+                    className={`w-full px-3 py-2 border rounded-lg ${editTankErrors.active ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isTankEditSubmitting}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  {editTankErrors.active && <p className="text-red-600 text-sm mt-1 font-medium">{editTankErrors.active}</p>}
+                </div>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t p-6">
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isTankEditSubmitting}
+                  onClick={handleEditTankSubmit}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                >
+                  {isTankEditSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Update Tank'
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTankEditModal(false)}
+                  disabled={isTankEditSubmitting}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   Cancel

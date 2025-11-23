@@ -738,81 +738,27 @@ export function SettingsView() {
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th
-                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
                       onClick={() => handleTanksSort('number')}
                     >
                       <div className="flex items-center gap-1">
-                        Number
-                        <div className="flex flex-col">
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 ${
-                              tanksSortColumn === 'number' && tanksSortDirection === 'asc'
-                                ? 'text-blue-600 rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(90deg)' }}
-                          />
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
-                              tanksSortColumn === 'number' && tanksSortDirection === 'desc'
-                                ? 'text-blue-600 -rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(-90deg)' }}
-                          />
-                        </div>
+                        Number {tanksSortColumn === 'number' && (tanksSortDirection === 'asc' ? '↑' : '↓')}
                       </div>
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
                       onClick={() => handleTanksSort('name')}
                     >
                       <div className="flex items-center gap-1">
-                        Name
-                        <div className="flex flex-col">
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 ${
-                              tanksSortColumn === 'name' && tanksSortDirection === 'asc'
-                                ? 'text-blue-600 rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(90deg)' }}
-                          />
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
-                              tanksSortColumn === 'name' && tanksSortDirection === 'desc'
-                                ? 'text-blue-600 -rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(-90deg)' }}
-                          />
-                        </div>
+                        Name {tanksSortColumn === 'name' && (tanksSortDirection === 'asc' ? '↑' : '↓')}
                       </div>
                     </th>
                     <th
-                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
                       onClick={() => handleTanksSort('status')}
                     >
                       <div className="flex items-center gap-1">
-                        Status
-                        <div className="flex flex-col">
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 ${
-                              tanksSortColumn === 'status' && tanksSortDirection === 'asc'
-                                ? 'text-blue-600 rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(90deg)' }}
-                          />
-                          <ChevronLeft
-                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
-                              tanksSortColumn === 'status' && tanksSortDirection === 'desc'
-                                ? 'text-blue-600 -rotate-90'
-                                : 'text-gray-300 hover:text-gray-500'
-                            }`}
-                            style={{ transform: 'rotate(-90deg)' }}
-                          />
-                        </div>
+                        Status {tanksSortColumn === 'status' && (tanksSortDirection === 'asc' ? '↑' : '↓')}
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-sm text-gray-600">Actions</th>

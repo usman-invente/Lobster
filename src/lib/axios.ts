@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { navigateTo } from './navigation';
 
 // Create axios instance with default config for Laravel Sanctum
 const axiosInstance = axios.create({
@@ -45,7 +46,7 @@ axiosInstance.interceptors.response.use(
         console.log('Session expired - redirecting to login');
 
         // Redirect to login page
-        window.location.href = '/login';
+        navigateTo('/login');
 
         // Return a resolved promise to prevent further error handling
         return Promise.resolve();

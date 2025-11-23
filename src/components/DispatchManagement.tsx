@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../lib/axios';
-import { Send, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function DispatchManagement() {
   const [dispatches, setDispatches] = useState<any[]>([]);
@@ -13,26 +14,98 @@ export function DispatchManagement() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch dispatches and tank stock
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Server-side table state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [sortColumn, setSortColumn] = useState('dispatchDate');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  const fetchData = async () => {
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editDispatch, setEditDispatch] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    dispatchDate: '',
+    dispatchType: 'export' as 'export' | 'regrade',
+    clientAwb: '',
+    lineItems: [] as any[]
+  });
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  // Fetch dispatches with server-side features
+  const fetchDispatches = async () => {
     setLoading(true);
     try {
-      const [dispatchRes, stockRes] = await Promise.all([
-        axios.get('/api/dispatches'),
-        axios.get('/api/tank-stock'),
-      ]);
-      setDispatches(dispatchRes.data.data || []);
-      setTankStock(stockRes.data.data || []);
-    } catch (err) {
-      // handle error
+      const response = await axios.get('/api/dispatches', {
+        params: {
+          page: currentPage,
+          per_page: perPage,
+          search: searchQuery,
+          sort_by: sortColumn,
+          sort_direction: sortDirection,
+        }
+      });
+      
+      const data = response.data.data || [];
+      const pagination = response.data.meta || { total: 0 };
+      
+      setDispatches(data);
+      setTotalRecords(pagination.total || data.length);
+    } catch (error) {
+      console.error('Error fetching dispatches:', error);
+      toast.error('Failed to load dispatches', {
+        description: 'Please refresh the page to try again.',
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  // Fetch tank stock
+  const fetchTankStock = async () => {
+    try {
+      const response = await axios.get('/api/tank-stock');
+      setTankStock(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching tank stock:', error);
+    }
+  };
+
+  // Load data on component mount and when filters change
+  useEffect(() => {
+    fetchDispatches();
+  }, [currentPage, perPage, searchQuery, sortColumn, sortDirection]);
+
+  // Load tank stock on mount
+  useEffect(() => {
+    fetchTankStock();
+  }, []);
+
+  // Handle search with debounce
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page on new search
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // Handle sort
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(totalRecords / perPage);
+  const startRecord = (currentPage - 1) * perPage + 1;
+  const endRecord = Math.min(currentPage * perPage, totalRecords);
 
   const addItem = (
     tankId: string,
@@ -102,7 +175,7 @@ export function DispatchManagement() {
       setClientAwb('');
       setDispatchDate(new Date().toISOString().split('T')[0]);
       setSelectedItems([]);
-      fetchData();
+      fetchDispatches();
     } catch (err) {
       alert('Failed to create dispatch.');
     } finally {
@@ -110,8 +183,70 @@ export function DispatchManagement() {
     }
   };
 
-  const summary = calculateSummary();
-  const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
+  // Delete handler
+  const handleDeleteDispatch = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this dispatch?')) return;
+    try {
+      await axios.delete(`/api/dispatches/${id}`);
+      toast.success('Dispatch deleted successfully');
+      fetchDispatches();
+    } catch (err) {
+      toast.error('Failed to delete dispatch');
+    }
+  };
+
+  // Open edit modal and populate form
+  const handleEditClick = (dispatch: any) => {
+    setEditDispatch(dispatch);
+    setEditForm({
+      dispatchDate: dispatch.dispatchDate ? new Date(dispatch.dispatchDate).toISOString().split('T')[0] : '',
+      dispatchType: dispatch.type,
+      clientAwb: dispatch.clientAwb,
+      lineItems: dispatch.lineItems || []
+    });
+    setEditErrors({});
+    setShowEditModal(true);
+  };
+
+  // Handle edit form change
+  const handleEditChange = (field: string, value: any) => {
+    setEditForm((prev: any) => ({ ...prev, [field]: value }));
+    if (editErrors[field]) setEditErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  // Submit edit
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDispatch) return;
+    if (editForm.lineItems.length === 0) {
+      toast.error('Please add at least one item');
+      return;
+    }
+    setIsEditSubmitting(true);
+    setEditErrors({});
+    try {
+      await axios.put(`/api/dispatches/${editDispatch.id}`, editForm);
+      toast.success('Dispatch updated successfully!');
+      setShowEditModal(false);
+      setEditDispatch(null);
+      fetchDispatches();
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key])
+            ? validationErrors[key][0]
+            : validationErrors[key];
+        });
+        setEditErrors(formattedErrors);
+      } else {
+        toast.error('Failed to update dispatch');
+      }
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6">
@@ -324,48 +459,283 @@ export function DispatchManagement() {
             </div>
           )}
 
+          {/* Search and Filters */}
+          <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 relative flex items-center">
+                <Search className="absolute left-3 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search by type, client/AWB, or date..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <label className="text-sm text-gray-600">Show:</label>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           {/* Dispatch History */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <h3 className="p-4 border-b">Dispatch History</h3>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-max">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Date</th>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Type</th>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Client/AWB</th>
-                    <th className="px-4 py-3 text-right text-sm text-gray-600">Total Kg</th>
+                    <th 
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('dispatchDate')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Date {sortColumn === 'dispatchDate' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('type')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Type {sortColumn === 'type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('clientAwb')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Client/AWB {sortColumn === 'clientAwb' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-right text-sm text-gray-600 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('totalKg')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Total Kg {sortColumn === 'totalKg' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-right text-sm text-gray-600">Items</th>
+                    <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dispatches.map((dispatch, idx) => (
-                    <tr key={dispatch.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3">{dispatch.dispatchDate}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          dispatch.type === 'export' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {dispatch.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">{dispatch.clientAwb}</td>
-                      <td className="px-4 py-3 text-right">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">{dispatch.lineItems.length}</td>
-                    </tr>
-                  ))}
-                  {dispatches.length === 0 && (
+                  {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Loading dispatches...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : dispatches.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                         No dispatches yet. Click "New Dispatch" to create one.
                       </td>
                     </tr>
+                  ) : (
+                    dispatches.map((dispatch, idx) => (
+                      <tr key={dispatch.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-3">{dispatch.dispatchDate}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            dispatch.type === 'export' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {dispatch.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{dispatch.clientAwb}</td>
+                        <td className="px-4 py-3 text-right">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right">{dispatch.lineItems?.length || 0}</td>
+                        <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                          <button
+                            title="Edit"
+                            onClick={() => handleEditClick(dispatch)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            title="Delete"
+                            onClick={() => handleDeleteDispatch(dispatch.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-sm text-gray-600">
+                Showing {dispatches.length > 0 ? startRecord : 0} to {endRecord} of {totalRecords} records
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="hidden sm:inline-block px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-xs sm:text-sm"
+                >
+                  <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+                <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-gray-600 font-medium">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-xs sm:text-sm"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="hidden sm:inline-block px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                >
+                  Last
+                </button>
+              </div>
+            </div>
           </div>
         </>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editDispatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-semibold">Edit Dispatch</h2>
+              <button
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => { setShowEditModal(false); setEditDispatch(null); }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.dispatchDate}
+                      onChange={(e) => handleEditChange('dispatchDate', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.dispatchDate ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.dispatchDate && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.dispatchDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Type</label>
+                    <select
+                      required
+                      value={editForm.dispatchType}
+                      onChange={(e) => handleEditChange('dispatchType', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.dispatchType ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    >
+                      <option value="export">Export</option>
+                      <option value="regrade">Regrade</option>
+                    </select>
+                    {editErrors.dispatchType && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.dispatchType}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Client/AWB</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.clientAwb}
+                    onChange={(e) => handleEditChange('clientAwb', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${editErrors.clientAwb ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isEditSubmitting}
+                  />
+                  {editErrors.clientAwb && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.clientAwb}</p>}
+                </div>
+                <div className="border-t pt-4">
+                  <h3 className="mb-3">Items ({editForm.lineItems.length})</h3>
+                  {editForm.lineItems.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No items</p>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {editForm.lineItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                          <span className="text-sm">
+                            Tank {item.tankNumber} - Size {item.size} - {item.kg}kg
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t p-6">
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting}
+                  onClick={handleEditSubmit}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                >
+                  {isEditSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Update Dispatch'
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={isEditSubmitting}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,11 +1,69 @@
 import React, { useState } from 'react';
 import axios from '../lib/axios';
-import { Loss, SizeCategory } from '../types';
+import { Loss as BaseLoss, SizeCategory } from '../types';
 import { AlertTriangle, Plus, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-export function LossAdjustment() {
+
+// Extend Loss type to include reason and string id
+type Loss = BaseLoss & { id: string; reason?: string };
+  import { useSelector } from 'react-redux';
+  import { RootState } from '../store';
+
+  // ...existing code...
+
+  export function LossAdjustment() {
+
+
+    // Edit modal state
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editLoss, setEditLoss] = useState<any>(null);
+
+    // Separate state for crates in edit modal
+    const [editCrates, setEditCrates] = useState<any[]>([]);
+    const [editCratesLoading, setEditCratesLoading] = useState(false);
+
+    // Fetch crates for edit modal tank selection
+    React.useEffect(() => {
+      if (!editModalOpen || !editLoss?.tankId) {
+        setEditCrates([]);
+        return;
+      }
+      setEditCratesLoading(true);
+      axios.get(`/api/tanks/${editLoss.tankId}/crates`)
+        .then(res => setEditCrates(res.data.data || []))
+        .catch(() => setEditCrates([]))
+        .finally(() => setEditCratesLoading(false));
+    }, [editModalOpen, editLoss?.tankId]);
+
+    // Open edit modal
+    const handleEditLoss = (loss: any) => {
+      setEditLoss(loss);
+      setEditModalOpen(true);
+    };
+
+    // Handle edit form change
+    const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      setEditLoss((prev: any) => ({ ...prev, [name]: value }));
+    };
+
+    // Submit edit
+    const handleEditSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editLoss) return;
+      setIsLoading(true);
+      try {
+        await axios.put(`/api/loss-adjustments/${editLoss.id}`, editLoss);
+        setLosses(prev => prev.map(l => l.id === editLoss.id ? { ...l, ...editLoss } : l));
+        toast.success('Loss record updated.');
+        setEditModalOpen(false);
+        setEditLoss(null);
+      } catch (err: any) {
+        toast.error('Failed to update loss record.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
   const [showForm, setShowForm] = useState(false);
   const [lossType, setLossType] = useState<'dead' | 'rotten' | 'lost'>('dead');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -32,13 +90,9 @@ export function LossAdjustment() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Edit and Delete handlers
-  const handleEditLoss = (loss: any) => {
-    // TODO: Open edit modal or form with loss data
-    toast.info('Edit feature coming soon!', { description: `Edit loss #${loss.id}` });
-  };
 
-  const handleDeleteLoss = async (id: number) => {
+
+  const handleDeleteLoss = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this loss record?')) return;
     setIsLoading(true);
     try {
@@ -79,7 +133,7 @@ export function LossAdjustment() {
       (loss.date && loss.date.toLowerCase().includes(q)) ||
       (loss.type && loss.type.toLowerCase().includes(q)) ||
       (loss.size && loss.size.toLowerCase().includes(q)) ||
-      (loss.reason && loss.reason.toLowerCase().includes(q)) ||
+      (loss.reason && typeof loss.reason === 'string' && loss.reason.toLowerCase().includes(q)) ||
       (loss.createdBy && loss.createdBy.toLowerCase().includes(q))
     );
   });
@@ -123,19 +177,22 @@ export function LossAdjustment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  if (!currentUser || !selectedItem) return;
+    if (!currentUser || !selectedItem || !selectedItem.crateId) {
+      toast.error('Please select a crate.');
+      return;
+    }
     setSubmitting(true);
     try {
       await axios.post('/api/loss-adjustments', {
         date,
         type: lossType,
         tankId: selectedTank,
-        crateId: selectedItem.crateId,
+        crateId: selectedItem.crateId, // ensure crateId is sent
         looseStockId: selectedItem.looseStockId,
         size: selectedItem.size,
         kg,
         reason,
-  createdBy: currentUser.id,
+        createdBy: currentUser.id,
       });
       setShowForm(false);
       setSelectedTank('');
@@ -157,7 +214,135 @@ export function LossAdjustment() {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <>
+      {/* Edit Modal */}
+      {editModalOpen && editLoss && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => { setEditModalOpen(false); setEditLoss(null); }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Edit Loss Record</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={editLoss.date ? editLoss.date.substring(0, 10) : ''}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Tank</label>
+                <select
+                  name="tankId"
+                  value={editLoss.tankId || ''}
+                  onChange={e => {
+                    handleEditChange(e);
+                    // Optionally reset crateId if tank changes
+                    setEditLoss((prev: any) => ({ ...prev, crateId: '' }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                >
+                  <option value="">Select tank</option>
+                  {allTankStock.map((tank: any) => (
+                    <option key={tank.id} value={tank.id}>{tank.tankName}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Crate</label>
+                <select
+                  name="crateId"
+                  value={editLoss.crateId || ''}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                  disabled={editCratesLoading}
+                >
+                  <option value="">{editCratesLoading ? 'Loading crates...' : 'Select crate'}</option>
+                  {editCrates.map((crate: any) => (
+                    <option key={crate.id} value={crate.id}>
+                      Crate #{crate.crateNumber} - Size {crate.size} ({crate.kg} kg)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Type</label>
+                <select
+                  name="type"
+                  value={editLoss.type}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                >
+                  <option value="dead">Dead</option>
+                  <option value="rotten">Rotten</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Size</label>
+                <input
+                  type="text"
+                  name="size"
+                  value={editLoss.size}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Kg</label>
+                <input
+                  type="number"
+                  name="kg"
+                  step="0.01"
+                  value={editLoss.kg}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Notes</label>
+                <textarea
+                  name="reason"
+                  value={editLoss.reason || ''}
+                  onChange={handleEditChange}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditModalOpen(false); setEditLoss(null); }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      <div className="p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="flex items-center gap-2">
           <AlertTriangle className="w-6 h-6" />
@@ -212,7 +397,7 @@ export function LossAdjustment() {
                 >
                   <option value="">Select tank</option>
                   {allTankStock.map(tank => (
-                    <option key={tank.tankId} value={tank.id}>
+                    <option key={tank.id} value={tank.id}>
                       {tank.tankName}
                     </option>
                   ))}
@@ -490,5 +675,6 @@ export function LossAdjustment() {
         </div>
       </div>
     </div>
+    </>
   );
 }

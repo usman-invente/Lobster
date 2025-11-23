@@ -96,9 +96,9 @@ export function Dashboard() {
             {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
               <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-1">Size {size}</p>
-                <p className="text-xl">{(stats.size_breakdown[size] ?? 0).toFixed(2)} kg</p>
+                <p className="text-xl">{Number(stats.size_breakdown[size] ?? 0).toFixed(2)} kg</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {stats.total_stock ? (((stats.size_breakdown[size] ?? 0) / stats.total_stock) * 100).toFixed(1) : '0.0'}%
+                  {stats.total_stock_kg ? (Number(stats.size_breakdown[size] ?? 0) / stats.total_stock_kg * 100).toFixed(1) : '0.0'}%
                 </p>
               </div>
             ))}

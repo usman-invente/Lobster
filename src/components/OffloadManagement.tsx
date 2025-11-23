@@ -37,6 +37,13 @@ export function OffloadManagement() {
     sizeE: 0,
   });
 
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRecord, setEditRecord] = useState<OffloadRecord | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
   // Format date helper function
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -194,8 +201,68 @@ export function OffloadManagement() {
           duration: 5000,
         });
       }
+    }
+  };
+
+  // Delete handler
+  const handleDeleteRecord = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
+    try {
+      await axios.delete(`/api/offload-records/${id}`);
+      toast.success('Record deleted successfully');
+      await fetchOffloadRecords();
+    } catch (err) {
+      toast.error('Failed to delete record');
+    }
+  };
+
+  // Open edit modal and populate form
+  const handleEditClick = (record: OffloadRecord) => {
+    setEditRecord(record);
+    setEditForm({ ...record });
+    setEditErrors({});
+    setShowEditModal(true);
+  };
+
+  // Handle edit form change
+  const handleEditChange = (field: string, value: any) => {
+    setEditForm((prev: any) => ({ ...prev, [field]: value }));
+    if (editErrors[field]) setEditErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  // Submit edit
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editRecord) return;
+    setIsEditSubmitting(true);
+    setEditErrors({});
+    const totalKgAlive =
+      (editForm.sizeU || 0) + (editForm.sizeA || 0) + (editForm.sizeB || 0) +
+      (editForm.sizeC || 0) + (editForm.sizeD || 0) + (editForm.sizeE || 0);
+    try {
+      await axios.put(`/api/offload-records/${editRecord.id}`, {
+        ...editForm,
+        totalKgAlive,
+      });
+      toast.success('Offload record updated successfully!');
+      setShowEditModal(false);
+      setEditRecord(null);
+      await fetchOffloadRecords();
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key])
+            ? validationErrors[key][0]
+            : validationErrors[key];
+        });
+        setEditErrors(formattedErrors);
+      } else {
+        toast.error('Failed to update record');
+      }
     } finally {
-      setIsSubmitting(false);
+      setIsEditSubmitting(false);
     }
   };
 
@@ -267,36 +334,7 @@ export function OffloadManagement() {
                 />
                 {errors.boatName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.boatName}</p>}
               </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
-                <input
-                  type="date"
-                  
-                  value={formData.offloadDate}
-                  onChange={(e) => {
-                    setFormData({ ...formData, offloadDate: e.target.value });
-                    if (errors.offloadDate) setErrors({ ...errors, offloadDate: '' });
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg ${errors.offloadDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
-                />
-                {errors.offloadDate && <p className="text-red-600 text-sm mt-1 font-medium">{errors.offloadDate}</p>}
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Trip Number</label>
-                <input
-                  type="text"
-                  
-                  value={formData.tripNumber}
-                  onChange={(e) => {
-                    setFormData({ ...formData, tripNumber: e.target.value });
-                    if (errors.tripNumber) setErrors({ ...errors, tripNumber: '' });
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg ${errors.tripNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
-                />
-                {errors.tripNumber && <p className="text-red-600 text-sm mt-1 font-medium">{errors.tripNumber}</p>}
-              </div>
+              
               <div>
                 <label className="block text-sm text-gray-600 mb-1">External Factory</label>
                 <input
@@ -515,12 +553,13 @@ export function OffloadManagement() {
                   Rotten (kg) {sortColumn === 'totalKgRotten' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </div>
               </th>
+              <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Loading records...
@@ -529,7 +568,7 @@ export function OffloadManagement() {
               </tr>
             ) : offloadRecords.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                   No offload records yet. Click "New Offload" to create one.
                 </td>
               </tr>
@@ -540,11 +579,27 @@ export function OffloadManagement() {
                   <td className="px-4 py-3">{formatDate(record.offloadDate)}</td>
                   <td className="px-4 py-3">{record.tripNumber}</td>
                   <td className="px-4 py-3">{record.externalFactory}</td>
-                  <td className="px-4 py-3 text-right">{record.totalKgOffloaded.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right">{record.totalKgReceived.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right">{record.totalKgAlive.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right">{record.totalKgDead.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right">{record.totalKgRotten.toFixed(2)}</td>
+                  <td className="px-4 py-3">{record.totalKgOffloaded.toFixed(2)}</td>
+                  <td className="px-4 py-3">{record.totalKgReceived.toFixed(2)}</td>
+                  <td className="px-4 py-3">{record.totalKgAlive.toFixed(2)}</td>
+                  <td className="px-4 py-3">{record.totalKgDead.toFixed(2)}</td>
+                  <td className="px-4 py-3">{record.totalKgRotten.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                    <button
+                      title="Edit"
+                      onClick={() => handleEditClick(record)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3h3z" /></svg>
+                    </button>
+                    <button
+                      title="Delete"
+                      onClick={() => handleDeleteRecord(record.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -593,6 +648,173 @@ export function OffloadManagement() {
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {showEditModal && editRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-semibold">Edit Offload Record</h2>
+              <button
+                className="text-gray-400 hover:text-gray-600"
+                onClick={() => { setShowEditModal(false); setEditRecord(null); }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Boat Name</label>
+                    <input
+                      type="text"
+                      value={editForm.boatName || ''}
+                      onChange={e => handleEditChange('boatName', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.boatName ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.boatName && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.boatName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
+                    <input
+                      type="date"
+                      value={editForm.offloadDate || ''}
+                      onChange={e => handleEditChange('offloadDate', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.offloadDate ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.offloadDate && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.offloadDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Trip Number</label>
+                    <input
+                      type="text"
+                      value={editForm.tripNumber || ''}
+                      onChange={e => handleEditChange('tripNumber', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.tripNumber ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.tripNumber && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.tripNumber}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">External Factory</label>
+                    <input
+                      type="text"
+                      value={editForm.externalFactory || ''}
+                      onChange={e => handleEditChange('externalFactory', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.externalFactory ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.externalFactory && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.externalFactory}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Total Kg Offloaded</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.totalKgOffloaded || 0}
+                      onChange={e => handleEditChange('totalKgOffloaded', parseFloat(e.target.value) || 0)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgOffloaded ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.totalKgOffloaded && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgOffloaded}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Total Kg Received</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.totalKgReceived || 0}
+                      onChange={e => handleEditChange('totalKgReceived', parseFloat(e.target.value) || 0)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgReceived ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.totalKgReceived && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgReceived}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Total Kg Dead</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.totalKgDead || 0}
+                      onChange={e => handleEditChange('totalKgDead', parseFloat(e.target.value) || 0)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgDead ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.totalKgDead && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgDead}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Total Kg Rotten</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.totalKgRotten || 0}
+                      onChange={e => handleEditChange('totalKgRotten', parseFloat(e.target.value) || 0)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgRotten ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgRotten}</p>}
+                  </div>
+                </div>
+                <div className="border-t pt-4">
+                  <h3 className="mb-3">Live Lobster by Size</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => {
+                      const fieldName = `size${size}`;
+                      return (
+                        <div key={size}>
+                          <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editForm[fieldName] || 0}
+                            onChange={e => handleEditChange(fieldName, parseFloat(e.target.value) || 0)}
+                            className={`w-full px-3 py-2 border rounded-lg ${editErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`}
+                            disabled={isEditSubmitting}
+                          />
+                          {editErrors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[fieldName]}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t p-6">
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isEditSubmitting}
+                  onClick={handleEditSubmit}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                >
+                  {isEditSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Update Record'
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={isEditSubmitting}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

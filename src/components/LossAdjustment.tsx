@@ -209,7 +209,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
     if (!selectedItem || !selectedItem.crateId) errors.crateId = 'Crate is required.';
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
-    if (!currentUser) return;
+    if (!currentUser || !selectedItem) return;
     setSubmitting(true);
     try {
       await axios.post('/api/loss-adjustments', {

@@ -4,9 +4,11 @@ import { CrateLineItem, LooseStock, SizeCategory } from '../types';
 import { CheckCircle, Package, Loader2 } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
+import { useSelector } from 'react-redux';
 
 export function RecheckProcess() {
-  const { currentUser } = useData();
+  const currentUser = useSelector((state: any) => state.user.user);
+  console.log('Current user from Redux:', currentUser);
   const [selectedCrate, setSelectedCrate] = useState<CrateLineItem | null>(null);
   const [storageType, setStorageType] = useState<'crate' | 'loose'>('crate');
   const [selectedTank, setSelectedTank] = useState('');

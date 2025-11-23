@@ -32,7 +32,8 @@ export function SettingsView() {
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
-    role: 'operator' as 'admin' | 'operator'
+    role: 'operator' as 'admin' | 'operator',
+    password: ''
   });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
@@ -75,7 +76,8 @@ export function SettingsView() {
     setEditForm({
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      password: ''
     });
     setEditErrors({});
     setShowEditModal(true);
@@ -93,8 +95,17 @@ export function SettingsView() {
     if (!editUser) return;
     setIsEditSubmitting(true);
     setEditErrors({});
+    
+    // Prepare data to send - only include password if it's not empty
+    const updateData = {
+      name: editForm.name,
+      email: editForm.email,
+      role: editForm.role,
+      ...(editForm.password && { password: editForm.password })
+    };
+    
     try {
-      await axios.put(`/api/users/${editUser.id}`, editForm);
+      await axios.put(`/api/users/${editUser.id}`, updateData);
       toast.success('User updated successfully!');
       setShowEditModal(false);
       setEditUser(null);
@@ -564,6 +575,18 @@ export function SettingsView() {
                     disabled={isEditSubmitting}
                   />
                   {editErrors.email && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.email}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Password <span className="text-gray-400 text-xs">(leave empty to keep current)</span></label>
+                  <input
+                    type="password"
+                    value={editForm.password}
+                    onChange={(e) => handleEditChange('password', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${editErrors.password ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isEditSubmitting}
+                    placeholder="Enter new password"
+                  />
+                  {editErrors.password && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.password}</p>}
                 </div>
               </form>
             </div>

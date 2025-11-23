@@ -21,6 +21,7 @@ export function DispatchManagement() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [sortColumn, setSortColumn] = useState('dispatchDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -29,7 +30,7 @@ export function DispatchManagement() {
     dispatchDate: '',
     dispatchType: 'export' as 'export' | 'regrade',
     clientAwb: '',
-    lineItems: [] as any[]
+    line_items: [] as any[]
   });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
@@ -128,10 +129,12 @@ export function DispatchManagement() {
       isLoose: !crateId,
     };
     setSelectedItems([...selectedItems, item]);
+    if (errors.lineItems) setErrors(prev => ({...prev, lineItems: ''}));
   };
 
   const removeItem = (id: string) => {
     setSelectedItems(selectedItems.filter(item => item.id !== id));
+    if (errors.lineItems) setErrors(prev => ({...prev, lineItems: ''}));
   };
 
   const updateItemKg = (id: string, kg: number) => {
@@ -150,11 +153,8 @@ export function DispatchManagement() {
 
   // Save new dispatch via API
   const handleSubmit = async () => {
-    if (selectedItems.length === 0 || !clientAwb.trim()) {
-      alert('Please fill in all required fields and select items to dispatch.');
-      return;
-    }
     setSubmitting(true);
+    setErrors({});
     try {
       const summary = calculateSummary();
       const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
@@ -176,8 +176,21 @@ export function DispatchManagement() {
       setDispatchDate(new Date().toISOString().split('T')[0]);
       setSelectedItems([]);
       fetchDispatches();
-    } catch (err) {
-      alert('Failed to create dispatch.');
+      toast.success('Dispatch created successfully!');
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        const validationErrors = error.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        Object.keys(validationErrors).forEach(key => {
+          formattedErrors[key] = Array.isArray(validationErrors[key])
+            ? validationErrors[key][0]
+            : validationErrors[key];
+        });
+        setErrors(formattedErrors);
+        toast.error('Please fix the validation errors below.');
+      } else {
+        toast.error('Failed to create dispatch.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -196,16 +209,25 @@ export function DispatchManagement() {
   };
 
   // Open edit modal and populate form
-  const handleEditClick = (dispatch: any) => {
-    setEditDispatch(dispatch);
-    setEditForm({
-      dispatchDate: dispatch.dispatchDate ? new Date(dispatch.dispatchDate).toISOString().split('T')[0] : '',
-      dispatchType: dispatch.type,
-      clientAwb: dispatch.clientAwb,
-      lineItems: dispatch.lineItems || []
-    });
-    setEditErrors({});
-    setShowEditModal(true);
+  const handleEditClick = async (dispatch: any) => {
+    try {
+      // Fetch the full dispatch details including lineItems
+      const response = await axios.get(`/api/dispatches/${dispatch.id}`);
+      const fullDispatch = response.data.data || response.data;
+      
+      setEditDispatch(fullDispatch);
+      setEditForm({
+        dispatchDate: fullDispatch.dispatchDate ? new Date(fullDispatch.dispatchDate).toISOString().split('T')[0] : '',
+        dispatchType: fullDispatch.type,
+        clientAwb: fullDispatch.clientAwb,
+        line_items: fullDispatch.line_items || []
+      });
+      setEditErrors({});
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Error fetching dispatch details:', error);
+      toast.error('Failed to load dispatch details');
+    }
   };
 
   // Handle edit form change
@@ -218,7 +240,7 @@ export function DispatchManagement() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDispatch) return;
-    if (editForm.lineItems.length === 0) {
+    if (editForm.line_items.length === 0) {
       toast.error('Please add at least one item');
       return;
     }
@@ -280,12 +302,16 @@ export function DispatchManagement() {
                     <label className="block text-sm text-gray-600 mb-1">Type</label>
                     <select
                       value={dispatchType}
-                      onChange={(e) => setDispatchType(e.target.value as 'export' | 'regrade')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      onChange={(e) => {
+                        setDispatchType(e.target.value as 'export' | 'regrade');
+                        if (errors.type) setErrors(prev => ({...prev, type: ''}));
+                      }}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${errors.type ? 'border-red-500' : ''}`}
                     >
                       <option value="export">Export</option>
                       <option value="regrade">Regrade</option>
                     </select>
+                    {errors.type && <p className="text-red-600 text-sm mt-1">{errors.type}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Client / AWB</label>
@@ -293,9 +319,13 @@ export function DispatchManagement() {
                       type="text"
                       required
                       value={clientAwb}
-                      onChange={(e) => setClientAwb(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      onChange={(e) => {
+                        setClientAwb(e.target.value);
+                        if (errors.clientAwb) setErrors(prev => ({...prev, clientAwb: ''}));
+                      }}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${errors.clientAwb ? 'border-red-500' : ''}`}
                     />
+                    {errors.clientAwb && <p className="text-red-600 text-sm mt-1">{errors.clientAwb}</p>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Dispatch Date</label>
@@ -303,9 +333,13 @@ export function DispatchManagement() {
                       type="date"
                       required
                       value={dispatchDate}
-                      onChange={(e) => setDispatchDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      onChange={(e) => {
+                        setDispatchDate(e.target.value);
+                        if (errors.dispatchDate) setErrors(prev => ({...prev, dispatchDate: ''}));
+                      }}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${errors.dispatchDate ? 'border-red-500' : ''}`}
                     />
+                    {errors.dispatchDate && <p className="text-red-600 text-sm mt-1">{errors.dispatchDate}</p>}
                   </div>
                 </div>
               </div>
@@ -381,6 +415,7 @@ export function DispatchManagement() {
               {/* Selected Items */}
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="mb-4">Selected Items ({selectedItems.length})</h3>
+                {errors.lineItems && <p className="text-red-600 text-sm mb-2">{errors.lineItems}</p>}
                 {selectedItems.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No items selected</p>
                 ) : (
@@ -569,7 +604,7 @@ export function DispatchManagement() {
                   ) : (
                     dispatches.map((dispatch, idx) => (
                       <tr key={dispatch.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3">{dispatch.dispatchDate}</td>
+                        <td className="px-4 py-3">{dispatch.dispatchDate ? new Date(dispatch.dispatchDate).toLocaleDateString() : ''}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded text-xs ${
                             dispatch.type === 'export' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
@@ -579,7 +614,7 @@ export function DispatchManagement() {
                         </td>
                         <td className="px-4 py-3">{dispatch.clientAwb}</td>
                         <td className="px-4 py-3 text-right">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">{dispatch.lineItems?.length || 0}</td>
+                        <td className="px-4 py-3 text-right">{dispatch.line_items?.length || 0}</td>
                         <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
                           <button
                             title="Edit"
@@ -707,12 +742,12 @@ export function DispatchManagement() {
                   {editErrors.clientAwb && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.clientAwb}</p>}
                 </div>
                 <div className="border-t pt-4">
-                  <h3 className="mb-3">Items ({editForm.lineItems.length})</h3>
-                  {editForm.lineItems.length === 0 ? (
+                  <h3 className="mb-3">Items ({editForm.line_items.length})</h3>
+                  {editForm.line_items.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">No items</p>
                   ) : (
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {editForm.lineItems.map((item: any, idx: number) => (
+                      {editForm.line_items.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                           <span className="text-sm">
                             Tank {item.tankNumber} - Size {item.size} - {item.kg}kg

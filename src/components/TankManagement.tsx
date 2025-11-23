@@ -127,7 +127,7 @@ export function TankManagement() {
                       selectedTank.crates.map((crate: any) => (
                         <tr key={crate.id}>
                           <td className="px-4 py-2">{crate.crateNumber}</td>
-                          <td className="px-4 py-2">{crate.boat}</td>
+                          <td className="px-4 py-2">{crate.boatName}</td>
                           <td className="px-4 py-2">{crate.offloadDate}</td>
                           <td className="px-4 py-2">{crate.size}</td>
                           <td className="px-4 py-2 text-right">{crate.kg?.toFixed ? crate.kg.toFixed(2) : crate.kg}</td>

@@ -417,21 +417,27 @@ export function DispatchManagement() {
               </div>
 
               {/* Summary */}
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="mb-4">Dispatch Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg text-center">
-                    <p className="text-sm text-gray-600">Total</p>
-                    <p>{Number(totalKg).toFixed(2)} kg</p>
-                  </div>
-                  {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
-                    <div key={size} className="p-3 bg-gray-50 rounded-lg text-center">
-                      <p className="text-sm text-gray-600">Size {size}</p>
-                      <p>{Number(summary[size]).toFixed(2)} kg</p>
+              {(() => {
+                const summary = calculateSummary();
+                const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
+                return (
+                  <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="mb-4">Dispatch Summary</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4">
+                      <div className="p-3 bg-blue-50 rounded-lg text-center">
+                        <p className="text-sm text-gray-600">Total</p>
+                        <p>{Number(totalKg).toFixed(2)} kg</p>
+                      </div>
+                      {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+                        <div key={size} className="p-3 bg-gray-50 rounded-lg text-center">
+                          <p className="text-sm text-gray-600">Size {size}</p>
+                          <p>{Number(summary[size]).toFixed(2)} kg</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                );
+              })()}
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">

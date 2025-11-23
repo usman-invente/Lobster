@@ -32,6 +32,27 @@ export function LossAdjustment() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Edit and Delete handlers
+  const handleEditLoss = (loss: any) => {
+    // TODO: Open edit modal or form with loss data
+    toast.info('Edit feature coming soon!', { description: `Edit loss #${loss.id}` });
+  };
+
+  const handleDeleteLoss = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this loss record?')) return;
+    setIsLoading(true);
+    try {
+      // Replace with your actual API endpoint
+      await axios.delete(`/api/loss-adjustments/${id}`);
+      setLosses(prev => prev.filter(l => l.id !== id));
+      toast.success('Loss record deleted.');
+    } catch (err: any) {
+      toast.error('Failed to delete loss record.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Debounced search (local filtering for now)
   React.useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -359,6 +380,7 @@ export function LossAdjustment() {
                 </th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Notes</th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Recorded By</th>
+                <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -403,6 +425,22 @@ export function LossAdjustment() {
                     }</td>
                     <td className="px-4 py-3">{loss.reason || '-'}</td>
                     <td className="px-4 py-3">{loss.createdBy}</td>
+                    <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                      <button
+                        title="Edit"
+                        onClick={() => handleEditLoss(loss)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3h3z" /></svg>
+                      </button>
+                      <button
+                        title="Delete"
+                        onClick={() => handleDeleteLoss(loss.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

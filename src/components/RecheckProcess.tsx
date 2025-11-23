@@ -17,6 +17,7 @@ export function RecheckProcess() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isStoring, setIsStoring] = useState(false);
   const [tanks, setTanks] = useState<any[]>([]);
+  const [isRechecking, setIsRechecking] = useState(false);
 
   // Fetch tanks from API
   const fetchTanks = async () => {
@@ -68,6 +69,7 @@ export function RecheckProcess() {
   const handleRecheck = async () => {
     if (!selectedCrate || !currentUser) return;
 
+    setIsRechecking(true);
     try {
       const response = await axios.put(`/api/crates/${selectedCrate.id}`, {
         kg: editedKg,
@@ -89,6 +91,8 @@ export function RecheckProcess() {
       toast.error('Failed to recheck crate', {
         description: 'Please try again.',
       });
+    } finally {
+      setIsRechecking(false);
     }
   };
 
@@ -253,9 +257,17 @@ export function RecheckProcess() {
                 </div>
                 <button
                   onClick={handleRecheck}
-                  className="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  disabled={isRechecking}
+                  className="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 flex items-center justify-center"
                 >
-                  Update Recheck Data
+                  {isRechecking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Recheck Data'
+                  )}
                 </button>
               </div>
 

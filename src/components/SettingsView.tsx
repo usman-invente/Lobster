@@ -737,9 +737,84 @@ export function SettingsView() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Number</th>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Name</th>
-                    <th className="px-4 py-3 text-left text-sm text-gray-600">Status</th>
+                    <th
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      onClick={() => handleTanksSort('number')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Number
+                        <div className="flex flex-col">
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 ${
+                              tanksSortColumn === 'number' && tanksSortDirection === 'asc'
+                                ? 'text-blue-600 rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(90deg)' }}
+                          />
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
+                              tanksSortColumn === 'number' && tanksSortDirection === 'desc'
+                                ? 'text-blue-600 -rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(-90deg)' }}
+                          />
+                        </div>
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      onClick={() => handleTanksSort('name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Name
+                        <div className="flex flex-col">
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 ${
+                              tanksSortColumn === 'name' && tanksSortDirection === 'asc'
+                                ? 'text-blue-600 rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(90deg)' }}
+                          />
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
+                              tanksSortColumn === 'name' && tanksSortDirection === 'desc'
+                                ? 'text-blue-600 -rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(-90deg)' }}
+                          />
+                        </div>
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left text-sm text-gray-600 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                      onClick={() => handleTanksSort('status')}
+                    >
+                      <div className="flex items-center gap-1">
+                        Status
+                        <div className="flex flex-col">
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 ${
+                              tanksSortColumn === 'status' && tanksSortDirection === 'asc'
+                                ? 'text-blue-600 rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(90deg)' }}
+                          />
+                          <ChevronLeft
+                            className={`w-3 h-3 transition-colors duration-150 -mt-1 ${
+                              tanksSortColumn === 'status' && tanksSortDirection === 'desc'
+                                ? 'text-blue-600 -rotate-90'
+                                : 'text-gray-300 hover:text-gray-500'
+                            }`}
+                            style={{ transform: 'rotate(-90deg)' }}
+                          />
+                        </div>
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-left text-sm text-gray-600">Actions</th>
                   </tr>
                 </thead>
@@ -760,7 +835,7 @@ export function SettingsView() {
                       </td>
                     </tr>
                   ) : (
-                    tanksFromApi.sort((a: any, b: any) => a.number - b.number).map((tank: any, idx: number) => (
+                    tanksFromApi.map((tank: any, idx: number) => (
                       <tr key={tank.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-4 py-3">{tank.tankNumber}</td>
                         <td className="px-4 py-3">{tank.tankName}</td>
@@ -789,14 +864,80 @@ export function SettingsView() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                           
+                            <button
+                              onClick={() => handleToggleTank(tank)}
+                              className={`px-3 py-1 rounded text-xs ml-2 ${
+                                tank.status == 1
+                                  ? 'bg-red-600 text-white hover:bg-red-700'
+                                  : 'bg-green-600 text-white hover:bg-green-700'
+                              }`}
+                            >
+                              {tank.status == 1 ? 'Deactivate' : 'Activate'}
+                            </button>
                           </div>
                         </td>
-                    </tr>
+                      </tr>
                     ))
                   )}
                 </tbody>
               </table>
+
+              {/* Tanks Pagination */}
+              <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="text-sm text-gray-600">
+                  Showing {tanksFromApi.length > 0 ? tanksStartRecord : 0} to {tanksEndRecord} of {tanksTotalRecords} records
+                </div>
+                <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
+                  <button
+                    onClick={() => setTanksCurrentPage(1)}
+                    disabled={tanksCurrentPage === 1}
+                    className="hidden sm:inline-block px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                  >
+                    First
+                  </button>
+                  <button
+                    onClick={() => setTanksCurrentPage(Math.max(1, tanksCurrentPage - 1))}
+                    disabled={tanksCurrentPage === 1}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, tanksTotalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(tanksTotalPages - 4, tanksCurrentPage - 2)) + i;
+                    if (pageNum > tanksTotalPages) return null;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setTanksCurrentPage(pageNum)}
+                        className={`px-2 sm:px-3 py-1 border rounded text-xs sm:text-sm ${
+                          tanksCurrentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    onClick={() => setTanksCurrentPage(Math.min(tanksTotalPages, tanksCurrentPage + 1))}
+                    disabled={tanksCurrentPage === tanksTotalPages}
+                    className="px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setTanksCurrentPage(tanksTotalPages)}
+                    disabled={tanksCurrentPage === tanksTotalPages}
+                    className="hidden sm:inline-block px-2 sm:px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

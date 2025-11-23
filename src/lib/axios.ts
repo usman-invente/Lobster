@@ -35,9 +35,21 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and optionally redirect to login
-      localStorage.removeItem('token'); // Fix: clear the correct token key
-      // You can dispatch a logout action here
+      // Check if the response contains "Unauthenticated." message
+      if (error.response.data?.message === 'Unauthenticated.') {
+        // Clear stored auth token
+        localStorage.removeItem('token');
+
+        // Show error message (assuming you have toast notifications)
+        // You can replace this with your preferred notification system
+        console.log('Session expired - redirecting to login');
+
+        // Redirect to login page
+        window.location.href = '/login';
+
+        // Return a resolved promise to prevent further error handling
+        return Promise.resolve();
+      }
     }
     return Promise.reject(error);
   }

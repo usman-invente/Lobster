@@ -256,17 +256,27 @@ export function LossAdjustment() {
             <tbody>
               {losses.map((loss, idx) => (
                 <tr key={loss.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-4 py-3">{loss.date}</td>
+                  <td className="px-4 py-3">{
+                    loss.date && typeof loss.date === 'string'
+                      ? (loss.date.length >= 10 ? loss.date.substring(0, 10) : loss.date)
+                      : '-'
+                  }</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded text-xs ${loss.type === 'dead' ? 'bg-red-100 text-red-800' :
-                        loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
-                          'bg-gray-100 text-gray-800'
-                      }`}>
+                      loss.type === 'rotten' ? 'bg-orange-100 text-orange-800' :
+                        'bg-gray-100 text-gray-800'
+                    }`}>
                       {loss.type}
                     </span>
                   </td>
                   <td className="px-4 py-3">{loss.size}</td>
-                  <td className="px-4 py-3 text-right">{loss.kg.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right">{
+                    (typeof loss.kg === 'number' && isFinite(loss.kg))
+                      ? loss.kg.toFixed(2)
+            : (typeof loss.kg === 'string' && !isNaN(Number(loss.kg)) && (loss.kg as string).trim() !== ''
+              ? Number(loss.kg).toFixed(2)
+              : '-')
+                  }</td>
                   <td className="px-4 py-3">{loss.notes || '-'}</td>
                   <td className="px-4 py-3">{loss.createdBy}</td>
                 </tr>

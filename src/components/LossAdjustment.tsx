@@ -12,6 +12,10 @@ type Loss = BaseLoss & { id: string; reason?: string };
   // ...existing code...
 
   export function LossAdjustment() {
+  // Validation state for edit modal
+  const [editFormErrors, setEditFormErrors] = useState<any>({});
+  // Validation state for add form
+  const [formErrors, setFormErrors] = useState<any>({});
 
 
     // Edit modal state
@@ -51,6 +55,18 @@ type Loss = BaseLoss & { id: string; reason?: string };
     const handleEditSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!editLoss) return;
+      const errors: any = {};
+      // Frontend validation matching Laravel rules (sometimes)
+      if (editLoss.date && new Date(editLoss.date) > new Date()) errors.date = 'Date cannot be in the future.';
+      if (editLoss.tankId && isNaN(Number(editLoss.tankId))) errors.tankId = 'Tank is required.';
+      if (editLoss.type && !['dead','rotten','lost'].includes(editLoss.type)) errors.type = 'Invalid type.';
+      if (editLoss.size && !['U','A','B','C','D','E'].includes(editLoss.size)) errors.size = 'Invalid size.';
+      if (editLoss.kg && (isNaN(Number(editLoss.kg)) || Number(editLoss.kg) < 0.01)) errors.kg = 'Kg must be at least 0.01.';
+      if (editLoss.kg && Number(editLoss.kg) > 9999.99) errors.kg = 'Kg must be less than 9999.99.';
+      if (editLoss.reason && editLoss.reason.length > 500) errors.reason = 'Notes must be 500 characters or less.';
+      if (editLoss.crateId && isNaN(Number(editLoss.crateId))) errors.crateId = 'Crate is required.';
+      setEditFormErrors(errors);
+      if (Object.keys(errors).length > 0) return;
       setIsLoading(true);
       try {
         await axios.put(`/api/loss-adjustments/${editLoss.id}`, editLoss);
@@ -58,6 +74,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
         toast.success('Loss record updated.');
         setEditModalOpen(false);
         setEditLoss(null);
+        setEditFormErrors({});
       } catch (err: any) {
         toast.error('Failed to update loss record.');
       } finally {
@@ -177,10 +194,22 @@ type Loss = BaseLoss & { id: string; reason?: string };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !selectedItem || !selectedItem.crateId) {
-      toast.error('Please select a crate.');
-      return;
-    }
+    const errors: any = {};
+    // Frontend validation matching Laravel rules
+    if (!date) errors.date = 'Date is required.';
+    else if (new Date(date) > new Date()) errors.date = 'Date cannot be in the future.';
+    if (!selectedTank) errors.tankId = 'Tank is required.';
+    if (!lossType) errors.type = 'Type is required.';
+    if (!selectedItem || !selectedItem.size) errors.size = 'Size is required.';
+    else if (!['U','A','B','C','D','E'].includes(selectedItem.size)) errors.size = 'Invalid size.';
+    if (!kg || isNaN(kg)) errors.kg = 'Kg is required.';
+    else if (kg < 0.01) errors.kg = 'Kg must be at least 0.01.';
+    else if (kg > 9999.99) errors.kg = 'Kg must be less than 9999.99.';
+    if (reason && reason.length > 500) errors.reason = 'Notes must be 500 characters or less.';
+    if (!selectedItem || !selectedItem.crateId) errors.crateId = 'Crate is required.';
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    if (!currentUser) return;
     setSubmitting(true);
     try {
       await axios.post('/api/loss-adjustments', {
@@ -199,6 +228,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
       setSelectedItem(null);
       setKg(0);
       setReason('');
+      setFormErrors({});
       // Refresh losses if needed
     } catch (err: any) {
       // Try to extract server message and error
@@ -237,6 +267,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
+                {editFormErrors.date && <div className="text-red-600 text-xs mt-1">{editFormErrors.date}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Tank</label>
@@ -245,7 +276,6 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   value={editLoss.tankId || ''}
                   onChange={e => {
                     handleEditChange(e);
-                    // Optionally reset crateId if tank changes
                     setEditLoss((prev: any) => ({ ...prev, crateId: '' }));
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -256,6 +286,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     <option key={tank.id} value={tank.id}>{tank.tankName}</option>
                   ))}
                 </select>
+                {editFormErrors.tankId && <div className="text-red-600 text-xs mt-1">{editFormErrors.tankId}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Crate</label>
@@ -274,6 +305,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     </option>
                   ))}
                 </select>
+                {editFormErrors.crateId && <div className="text-red-600 text-xs mt-1">{editFormErrors.crateId}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Type</label>
@@ -288,6 +320,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   <option value="rotten">Rotten</option>
                   <option value="lost">Lost</option>
                 </select>
+                {editFormErrors.type && <div className="text-red-600 text-xs mt-1">{editFormErrors.type}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Size</label>
@@ -299,6 +332,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
+                {editFormErrors.size && <div className="text-red-600 text-xs mt-1">{editFormErrors.size}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Kg</label>
@@ -311,6 +345,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
+                {editFormErrors.kg && <div className="text-red-600 text-xs mt-1">{editFormErrors.kg}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Notes</label>
@@ -321,6 +356,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
+                {editFormErrors.reason && <div className="text-red-600 text-xs mt-1">{editFormErrors.reason}</div>}
               </div>
               <div className="flex gap-3 pt-2">
                 <button
@@ -371,6 +407,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
+                {formErrors.date && <div className="text-red-600 text-xs mt-1">{formErrors.date}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Loss Type</label>
@@ -383,6 +420,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                   <option value="rotten">Rotten</option>
                   <option value="lost">Lost</option>
                 </select>
+                {formErrors.type && <div className="text-red-600 text-xs mt-1">{formErrors.type}</div>}
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Tank</label>
@@ -402,6 +440,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     </option>
                   ))}
                 </select>
+                {formErrors.tankId && <div className="text-red-600 text-xs mt-1">{formErrors.tankId}</div>}
               </div>
             </div>
 
@@ -437,6 +476,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     )}
                   </div>
                 )}
+                {formErrors.crateId && <div className="text-red-600 text-xs mt-1">{formErrors.crateId}</div>}
               </div>
             )}
 
@@ -456,6 +496,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                       onChange={(e) => setKg(parseFloat(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
+                    {formErrors.kg && <div className="text-red-600 text-xs mt-1">{formErrors.kg}</div>}
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Size</label>
@@ -465,6 +506,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                       value={selectedItem.size}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                     />
+                    {formErrors.size && <div className="text-red-600 text-xs mt-1">{formErrors.size}</div>}
                   </div>
                 </div>
                 <div className="mt-4">
@@ -475,6 +517,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
+                  {formErrors.reason && <div className="text-red-600 text-xs mt-1">{formErrors.reason}</div>}
                 </div>
               </div>
             )}

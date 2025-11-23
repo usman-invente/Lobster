@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import axios from '../lib/axios';
 import { BarChart3, Loader2 } from 'lucide-react';
 
@@ -59,6 +61,65 @@ export function ReportsView() {
     return d.toISOString().slice(0, 10);
   }
 
+  // Export helpers
+  function exportTankStock() {
+    if (!tankStock.length) return;
+    const ws = XLSX.utils.json_to_sheet(tankStock.map(t => ({
+      Tank: t.name,
+      'Total Kg': t.totalKg,
+      Crates: t.crates,
+      Loose: t.loose_stock
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'StockByTank');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_tank.xlsx');
+  }
+
+  function exportStockBySize() {
+    const data = [
+      {
+        Total: stockBySize.totalKg,
+        U: stockBySize.sizeU,
+        A: stockBySize.sizeA,
+        B: stockBySize.sizeB,
+        C: stockBySize.sizeC,
+        D: stockBySize.sizeD,
+        E: stockBySize.sizeE
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'StockBySize');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_size.xlsx');
+  }
+
+  function exportBoatTripStock() {
+    if (!boatTripStock.length) return;
+    const data = boatTripStock.map(trip => ({
+      Boat: trip.boatName,
+      'Offload Date': formatDate(trip.offloadDate),
+      'Trip #': trip.tripNumber,
+      Live: trip.totalLive,
+      Stored: trip.totalStored,
+      Empty: trip.totalEmptied,
+      Dispatched: trip.totalDispatched,
+      Remaining: trip.remaining?.totalKg,
+      U: trip.remaining?.sizeU,
+      A: trip.remaining?.sizeA,
+      B: trip.remaining?.sizeB,
+      C: trip.remaining?.sizeC,
+      D: trip.remaining?.sizeD,
+      E: trip.remaining?.sizeE
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'StockByBoat');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_boat.xlsx');
+  }
+
   return (
     <div className="p-4 md:p-6">
       <h1 className="mb-6 flex items-center gap-2">
@@ -66,21 +127,53 @@ export function ReportsView() {
         Reports
       </h1>
 
+
       <div className="space-y-6">
-        <select
-          value={reportType}
-          onChange={(e) => setReportType(e.target.value as ReportType)}
-          className="px-4 py-2 border border-gray-300 rounded-lg"
-        >
-          <option value="stock-by-tank">Stock by Tank</option>
-          <option value="stock-by-size">Stock by Size</option>
-          <option value="stock-by-boat">Stock by Boat/Trip</option>
-        </select>
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value as ReportType)}
+            className="px-4 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="stock-by-tank">Stock by Tank</option>
+            <option value="stock-by-size">Stock by Size</option>
+            <option value="stock-by-boat">Stock by Boat/Trip</option>
+          </select>
+          {/* Export button for each report type */}
+          {reportType === 'stock-by-tank' && (
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={exportTankStock}
+              disabled={isLoading || !tankStock.length}
+            >
+              Export to Excel
+            </button>
+          )}
+          {reportType === 'stock-by-size' && (
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={exportStockBySize}
+              disabled={isLoading}
+            >
+              Export to Excel
+            </button>
+          )}
+          {reportType === 'stock-by-boat' && (
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={exportBoatTripStock}
+              disabled={isLoading || !boatTripStock.length}
+            >
+              Export to Excel
+            </button>
+          )}
+        </div>
 
         {reportType === 'stock-by-tank' && (
           <div className="space-y-4">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="mb-4">Stock Summary by Tank</h2>
+               
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
                   <Loader2 className="w-5 h-5 animate-spin" /> Loading...
@@ -133,6 +226,7 @@ export function ReportsView() {
           <div className="space-y-4">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="mb-4">Factory-Wide Stock by Size</h2>
+               
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
                   <Loader2 className="w-5 h-5 animate-spin" /> Loading...
@@ -192,6 +286,7 @@ export function ReportsView() {
         {reportType === 'stock-by-boat' && (
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="mb-4">Stock by Boat/Trip</h2>
+             
             {isLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
                 <Loader2 className="w-5 h-5 animate-spin" /> Loading...

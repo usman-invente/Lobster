@@ -72,10 +72,10 @@ export function ReceivingManagement() {
       }
     };
     
-    if (showForm) {
+    if (showForm || showEditModal) {
       fetchOffloadRecords();
     }
-  }, [showForm]);
+  }, [showForm, showEditModal]);
 
   // Format date helper function
   const formatDate = (dateString: string) => {

@@ -507,7 +507,8 @@ export function OffloadManagement() {
       )}
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-max">
           <thead className="bg-gray-50 border-b">
             <tr>
               <th 
@@ -634,13 +635,14 @@ export function OffloadManagement() {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+        <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="text-sm text-gray-600">
             Showing {offloadRecords.length > 0 ? startRecord : 0} to {endRecord} of {totalRecords} records
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end">
             <button
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}

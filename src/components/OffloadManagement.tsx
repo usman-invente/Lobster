@@ -334,7 +334,36 @@ export function OffloadManagement() {
                 />
                 {errors.boatName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.boatName}</p>}
               </div>
-              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Offload Date</label>
+                <input
+                  type="date"
+                  
+                  value={formData.offloadDate}
+                  onChange={(e) => {
+                    setFormData({ ...formData, offloadDate: e.target.value });
+                    if (errors.offloadDate) setErrors({ ...errors, offloadDate: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.offloadDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
+                />
+                {errors.offloadDate && <p className="text-red-600 text-sm mt-1 font-medium">{errors.offloadDate}</p>}
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Trip Number</label>
+                <input
+                  type="text"
+                  
+                  value={formData.tripNumber}
+                  onChange={(e) => {
+                    setFormData({ ...formData, tripNumber: e.target.value });
+                    if (errors.tripNumber) setErrors({ ...errors, tripNumber: '' });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg ${errors.tripNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  disabled={isSubmitting}
+                />
+                {errors.tripNumber && <p className="text-red-600 text-sm mt-1 font-medium">{errors.tripNumber}</p>}
+              </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">External Factory</label>
                 <input

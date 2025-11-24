@@ -157,7 +157,7 @@ export function TankManagement() {
                       selectedTank.looseStock.map((stock: any, idx: number) => (
                         <tr key={idx}>
                           <td className="px-4 py-2">{stock.size}</td>
-                          <td className="px-4 py-2">{stock.boat}</td>
+                          <td className="px-4 py-2">{stock.boatName}</td>
                           <td className="px-4 py-2">{stock.offloadDate ? String(stock.offloadDate).slice(0, 10) : ''}</td>
                           <td className="px-4 py-2 text-right">{stock.kg?.toFixed ? stock.kg.toFixed(2) : stock.kg}</td>
                         </tr>

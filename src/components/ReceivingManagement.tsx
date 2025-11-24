@@ -154,11 +154,18 @@ export function ReceivingManagement() {
   const startRecord = (currentPage - 1) * perPage + 1;
   const endRecord = Math.min(currentPage * perPage, totalRecords);
 
+  // Calculate available crate numbers for create form (excluding already used ones)
+  const getAvailableCrateNumbersForCreate = () => {
+    const usedCrateNumbers = new Set(lineItems.map(item => item.crateNumber));
+    return Array.from({ length: 300 }, (_, i) => i + 1).filter(num => !usedCrateNumbers.has(num));
+  };
+
   const addLineItem = () => {
+    const availableNumbers = getAvailableCrateNumbersForCreate();
     setLineItems([...lineItems, {
       boatName: '',
       offloadDate: '',
-      crateNumber: availableCrates[0] || 1,
+      crateNumber: availableNumbers[0] || 1,
       size: 'A',
       kg: 0,
     }]);
@@ -273,14 +280,21 @@ export function ReceivingManagement() {
     }
   };
 
+  // Calculate available crate numbers for edit form (excluding already used ones)
+  const getAvailableCrateNumbers = () => {
+    const usedCrateNumbers = new Set(editForm.lineItems.map((item: any) => item.crateNumber));
+    return Array.from({ length: 300 }, (_, i) => i + 1).filter(num => !usedCrateNumbers.has(num));
+  };
+
   // Add line item to edit form
   const addEditLineItem = () => {
+    const availableNumbers = getAvailableCrateNumbers();
     setEditForm((prev: any) => ({
       ...prev,
       lineItems: [...prev.lineItems, {
         boatName: '',
         offloadDate: '',
-        crateNumber: availableCrates[0] || 1,
+        crateNumber: availableNumbers[0] || 1,
         size: 'A',
         kg: 0,
       }]
@@ -480,7 +494,7 @@ export function ReceivingManagement() {
                           className={`w-full px-3 py-2 border rounded-lg ${errors[`lineItems.${idx}.crateNumber`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                           disabled={isSubmitting}
                         >
-                          {availableCrates.map(num => (
+                          {getAvailableCrateNumbersForCreate().concat(item.crateNumber).sort((a, b) => a - b).map(num => (
                             <option key={num} value={num}>{num}</option>
                           ))}
                         </select>
@@ -516,7 +530,7 @@ export function ReceivingManagement() {
                           required
                           value={item.kg}
                           onChange={(e) => {
-                            updateLineItem(idx, 'kg', parseFloat(e.target.value) || 0);
+                            updateLineItem(idx, 'kg', parseFloat(e.target.value) || '');
                             if (errors[`lineItems.${idx}.kg`]) {
                               const newErrors = { ...errors };
                               delete newErrors[`lineItems.${idx}.kg`];
@@ -698,7 +712,7 @@ export function ReceivingManagement() {
                               className={`w-full px-3 py-2 border rounded-lg ${editErrors[`lineItems.${idx}.crateNumber`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                               disabled={isEditSubmitting}
                             >
-                              {availableCrates.map(num => (
+                              {getAvailableCrateNumbers().concat(item.crateNumber).sort((a, b) => a - b).map(num => (
                                 <option key={num} value={num}>{num}</option>
                               ))}
                             </select>
@@ -729,7 +743,7 @@ export function ReceivingManagement() {
                               required
                               value={item.kg}
                               onChange={(e) => {
-                                handleEditLineItemChange(idx, 'kg', parseFloat(e.target.value) || 0);
+                                handleEditLineItemChange(idx, 'kg', parseFloat(e.target.value) || '');
                               }}
                               className={`w-full px-3 py-2 border rounded-lg ${editErrors[`lineItems.${idx}.kg`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                               disabled={isEditSubmitting}

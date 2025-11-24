@@ -80,7 +80,8 @@ function MainApp() {
       // Ignore errors, proceed to clear token
     }
     localStorage.removeItem('token');
-    window.location.reload();
+    dispatch({ type: 'user/setUser', payload: null });
+    navigate('/');
   };
 
   if (!user) {

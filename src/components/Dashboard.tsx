@@ -178,8 +178,8 @@ export function Dashboard() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm">{(dispatch.totalKg ?? 0).toFixed(2)} kg</p>
-                      <p className="text-xs text-gray-500">{dispatch.dispatchDate}</p>
+                      <p className="text-sm">{isNaN(Number(dispatch.totalKg)) ? '0.00' : Number(dispatch.totalKg).toFixed(2)} kg</p>
+                      <p className="text-xs text-gray-500">{dispatch.dispatchDate ? new Date(dispatch.dispatchDate).toLocaleDateString() : ''}</p>
                     </div>
                   </div>
                 </div>

@@ -608,7 +608,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                 </th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Notes</th>
                 <th className="px-4 py-3 text-left text-sm text-gray-600">Recorded By</th>
-                <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th>
+                {/* <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th> */}
               </tr>
             </thead>
             <tbody>
@@ -653,7 +653,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                     }</td>
                     <td className="px-4 py-3">{loss.reason || '-'}</td>
                     <td className="px-4 py-3">{loss.createdBy}</td>
-                    <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                    {/* <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
                       <button
                         title="Edit"
                         onClick={() => handleEditLoss(loss)}
@@ -668,7 +668,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
-                    </td>
+                    </td> */}
                   </tr>
                 ))
               )}

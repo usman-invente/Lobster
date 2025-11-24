@@ -25,16 +25,17 @@ export function OffloadManagement() {
     offloadDate: new Date().toISOString().split('T')[0],
     tripNumber: '',
     externalFactory: '',
-    totalKgOffloaded: 0,
-    totalKgReceived: 0,
-    totalKgDead: 0,
-    totalKgRotten: 0,
-    sizeU: 0,
-    sizeA: 0,
-    sizeB: 0,
-    sizeC: 0,
-    sizeD: 0,
-    sizeE: 0,
+    totalKgOffloaded: '',
+    totalKgReceived: '',
+    totalKgDead: '',
+    totalKgRotten: '',
+    totalLive: '',
+    sizeU: '',
+    sizeA: '',
+    sizeB: '',
+    sizeC: '',
+    sizeD: '',
+    sizeE: '',
   });
 
   // Edit modal state
@@ -81,20 +82,22 @@ export function OffloadManagement() {
       }
       
       // Ensure all numeric fields are numbers, not strings
-      const normalizedRecords = records.map((record: any) => ({
-        ...record,
-        totalKgOffloaded: parseFloat(record.totalKgOffloaded) || 0,
-        totalKgReceived: parseFloat(record.totalKgReceived) || 0,
-        totalKgDead: parseFloat(record.totalKgDead) || 0,
-        totalKgRotten: parseFloat(record.totalKgRotten) || 0,
-        totalKgAlive: parseFloat(record.totalKgAlive) || 0,
-        sizeU: parseFloat(record.sizeU) || 0,
-        sizeA: parseFloat(record.sizeA) || 0,
-        sizeB: parseFloat(record.sizeB) || 0,
-        sizeC: parseFloat(record.sizeC) || 0,
-        sizeD: parseFloat(record.sizeD) || 0,
-        sizeE: parseFloat(record.sizeE) || 0,
-      }));
+      const normalizedRecords = records.map((record: any) => {
+        return {
+          ...record,
+          totalKgOffloaded: parseFloat(record.totalKgOffloaded) || 0,
+          totalKgReceived: parseFloat(record.totalKgReceived) || 0,
+          totalKgDead: parseFloat(record.totalKgDead) || 0,
+          totalKgRotten: parseFloat(record.totalKgRotten) || 0,
+          totalKgAlive: parseFloat(record.totalLive) || 0,
+          sizeU: parseFloat(record.sizeU) || 0,
+          sizeA: parseFloat(record.sizeA) || 0,
+          sizeB: parseFloat(record.sizeB) || 0,
+          sizeC: parseFloat(record.sizeC) || 0,
+          sizeD: parseFloat(record.sizeD) || 0,
+          sizeE: parseFloat(record.sizeE) || 0,
+        };
+      });
       
       setOffloadRecords(normalizedRecords);
       setTotalRecords(pagination.total || normalizedRecords.length);
@@ -142,13 +145,27 @@ export function OffloadManagement() {
     setIsSubmitting(true);
     setErrors({}); // Clear previous errors
 
-    const totalKgAlive = formData.sizeU + formData.sizeA + formData.sizeB + 
-                         formData.sizeC + formData.sizeD + formData.sizeE;
+    const totalKgAlive = (parseFloat(formData.sizeU) || 0) + (parseFloat(formData.sizeA) || 0) + (parseFloat(formData.sizeB) || 0) + 
+                         (parseFloat(formData.sizeC) || 0) + (parseFloat(formData.sizeD) || 0) + (parseFloat(formData.sizeE) || 0);
 
     // Send data to API using axios
     try {
       const response = await axios.post('/api/offload-records', {
-        ...formData,
+        boatName: formData.boatName,
+        offloadDate: formData.offloadDate,
+        tripNumber: formData.tripNumber,
+        externalFactory: formData.externalFactory,
+        totalKgOffloaded: parseFloat(formData.totalKgOffloaded) || 0,
+        totalKgReceived: parseFloat(formData.totalKgReceived) || 0,
+        totalKgDead: parseFloat(formData.totalKgDead) || 0,
+        totalKgRotten: parseFloat(formData.totalKgRotten) || 0,
+        totalLive: parseFloat(formData.totalLive) || 0,
+        sizeU: parseFloat(formData.sizeU) || 0,
+        sizeA: parseFloat(formData.sizeA) || 0,
+        sizeB: parseFloat(formData.sizeB) || 0,
+        sizeC: parseFloat(formData.sizeC) || 0,
+        sizeD: parseFloat(formData.sizeD) || 0,
+        sizeE: parseFloat(formData.sizeE) || 0,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
@@ -169,16 +186,17 @@ export function OffloadManagement() {
         offloadDate: new Date().toISOString().split('T')[0],
         tripNumber: '',
         externalFactory: '',
-        totalKgOffloaded: 0,
-        totalKgReceived: 0,
-        totalKgDead: 0,
-        totalKgRotten: 0,
-        sizeU: 0,
-        sizeA: 0,
-        sizeB: 0,
-        sizeC: 0,
-        sizeD: 0,
-        sizeE: 0,
+        totalKgOffloaded: '',
+        totalKgReceived: '',
+        totalKgDead: '',
+        totalKgRotten: '',
+        totalLive: '',
+        sizeU: '',
+        sizeA: '',
+        sizeB: '',
+        sizeC: '',
+        sizeD: '',
+        sizeE: '',
       });
     } catch (error: any) {
       console.error('Error creating offload record:', error);
@@ -237,12 +255,28 @@ export function OffloadManagement() {
     setIsEditSubmitting(true);
     setEditErrors({});
     const totalKgAlive =
-      (editForm.sizeU || 0) + (editForm.sizeA || 0) + (editForm.sizeB || 0) +
-      (editForm.sizeC || 0) + (editForm.sizeD || 0) + (editForm.sizeE || 0);
+      (parseFloat(editForm.sizeU) || 0) + (parseFloat(editForm.sizeA) || 0) + (parseFloat(editForm.sizeB) || 0) +
+      (parseFloat(editForm.sizeC) || 0) + (parseFloat(editForm.sizeD) || 0) + (parseFloat(editForm.sizeE) || 0);
     try {
       await axios.put(`/api/offload-records/${editRecord.id}`, {
-        ...editForm,
+        boatName: editForm.boatName,
+        offloadDate: editForm.offloadDate,
+        tripNumber: editForm.tripNumber,
+        externalFactory: editForm.externalFactory,
+        totalKgOffloaded: parseFloat(editForm.totalKgOffloaded) || 0,
+        totalKgReceived: parseFloat(editForm.totalKgReceived) || 0,
+        totalKgDead: parseFloat(editForm.totalKgDead) || 0,
+        totalKgRotten: parseFloat(editForm.totalKgRotten) || 0,
+        totalLive: parseFloat(editForm.totalLive) || 0,
+        sizeU: parseFloat(editForm.sizeU) || 0,
+        sizeA: parseFloat(editForm.sizeA) || 0,
+        sizeB: parseFloat(editForm.sizeB) || 0,
+        sizeC: parseFloat(editForm.sizeC) || 0,
+        sizeD: parseFloat(editForm.sizeD) || 0,
+        sizeE: parseFloat(editForm.sizeE) || 0,
         totalKgAlive,
+        deadOnTanks: 0,
+        rottenOnTanks: 0,
       });
       toast.success('Offload record updated successfully!');
       setShowEditModal(false);
@@ -393,16 +427,15 @@ export function OffloadManagement() {
 
             <div className="border-t pt-4">
               <h3 className="mb-3">Factory Receiving Breakdown</h3>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Total Kg Offloaded</label>
                   <input
                     type="number"
-                    step="0.01"
-                    
+                   
                     value={formData.totalKgOffloaded}
                     onChange={(e) => {
-                      setFormData({ ...formData, totalKgOffloaded: parseFloat(e.target.value) || 0 });
+                      setFormData({ ...formData, totalKgOffloaded: e.target.value });
                       if (errors.totalKgOffloaded) setErrors({ ...errors, totalKgOffloaded: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgOffloaded ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
@@ -418,7 +451,7 @@ export function OffloadManagement() {
                     
                     value={formData.totalKgReceived}
                     onChange={(e) => {
-                      setFormData({ ...formData, totalKgReceived: parseFloat(e.target.value) || 0 });
+                      setFormData({ ...formData, totalKgReceived: e.target.value });
                       if (errors.totalKgReceived) setErrors({ ...errors, totalKgReceived: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgReceived ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
@@ -434,7 +467,7 @@ export function OffloadManagement() {
                     
                     value={formData.totalKgDead}
                     onChange={(e) => {
-                      setFormData({ ...formData, totalKgDead: parseFloat(e.target.value) || 0 });
+                      setFormData({ ...formData, totalKgDead: e.target.value });
                       if (errors.totalKgDead) setErrors({ ...errors, totalKgDead: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgDead ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
@@ -450,13 +483,29 @@ export function OffloadManagement() {
                     
                     value={formData.totalKgRotten}
                     onChange={(e) => {
-                      setFormData({ ...formData, totalKgRotten: parseFloat(e.target.value) || 0 });
+                      setFormData({ ...formData, totalKgRotten: e.target.value });
                       if (errors.totalKgRotten) setErrors({ ...errors, totalKgRotten: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgRotten ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                     disabled={isSubmitting}
                   />
                   {errors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgRotten}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Total Live (kg)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    
+                    value={formData.totalLive}
+                    onChange={(e) => {
+                      setFormData({ ...formData, totalLive: e.target.value });
+                      if (errors.totalLive) setErrors({ ...errors, totalLive: '' });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg ${errors.totalLive ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                    disabled={isSubmitting}
+                  />
+                  {errors.totalLive && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalLive}</p>}
                 </div>
               </div>
             </div>
@@ -473,9 +522,9 @@ export function OffloadManagement() {
                         type="number"
                         step="0.01"
                         
-                        value={formData[fieldName] as number}
+                        value={formData[fieldName]}
                         onChange={(e) => {
-                          setFormData({ ...formData, [fieldName]: parseFloat(e.target.value) || 0 });
+                          setFormData({ ...formData, [fieldName]: e.target.value });
                           if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
                         }}
                         className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
@@ -758,8 +807,8 @@ export function OffloadManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={editForm.totalKgOffloaded || 0}
-                      onChange={e => handleEditChange('totalKgOffloaded', parseFloat(e.target.value) || 0)}
+                      value={editForm.totalKgOffloaded || ''}
+                      onChange={e => handleEditChange('totalKgOffloaded', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgOffloaded ? 'border-red-500' : 'border-gray-300'}`}
                       disabled={isEditSubmitting}
                     />
@@ -770,8 +819,8 @@ export function OffloadManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={editForm.totalKgReceived || 0}
-                      onChange={e => handleEditChange('totalKgReceived', parseFloat(e.target.value) || 0)}
+                      value={editForm.totalKgReceived || ''}
+                      onChange={e => handleEditChange('totalKgReceived', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgReceived ? 'border-red-500' : 'border-gray-300'}`}
                       disabled={isEditSubmitting}
                     />
@@ -782,8 +831,8 @@ export function OffloadManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={editForm.totalKgDead || 0}
-                      onChange={e => handleEditChange('totalKgDead', parseFloat(e.target.value) || 0)}
+                      value={editForm.totalKgDead || ''}
+                      onChange={e => handleEditChange('totalKgDead', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgDead ? 'border-red-500' : 'border-gray-300'}`}
                       disabled={isEditSubmitting}
                     />
@@ -794,12 +843,24 @@ export function OffloadManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={editForm.totalKgRotten || 0}
-                      onChange={e => handleEditChange('totalKgRotten', parseFloat(e.target.value) || 0)}
+                      value={editForm.totalKgRotten || ''}
+                      onChange={e => handleEditChange('totalKgRotten', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalKgRotten ? 'border-red-500' : 'border-gray-300'}`}
                       disabled={isEditSubmitting}
                     />
                     {editErrors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgRotten}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Total Live (kg)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editForm.totalLive || ''}
+                      onChange={e => handleEditChange('totalLive', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.totalLive ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    />
+                    {editErrors.totalLive && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalLive}</p>}
                   </div>
                 </div>
                 <div className="border-t pt-4">
@@ -813,8 +874,8 @@ export function OffloadManagement() {
                           <input
                             type="number"
                             step="0.01"
-                            value={editForm[fieldName] || 0}
-                            onChange={e => handleEditChange(fieldName, parseFloat(e.target.value) || 0)}
+                            value={editForm[fieldName] || ''}
+                            onChange={e => handleEditChange(fieldName, e.target.value)}
                             className={`w-full px-3 py-2 border rounded-lg ${editErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`}
                             disabled={isEditSubmitting}
                           />

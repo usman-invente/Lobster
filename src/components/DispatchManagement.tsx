@@ -613,8 +613,8 @@ export function DispatchManagement() {
                           </span>
                         </td>
                         <td className="px-4 py-3">{dispatch.clientAwb}</td>
-                        <td className="px-4 py-3 text-right">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">{dispatch.line_items?.length || 0}</td>
+                        <td className="px-4 py-3">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
+                        <td className="px-4 py-3">{dispatch.line_items?.length || 0}</td>
                         <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
                           <button
                             title="Edit"

@@ -114,11 +114,7 @@ export function Login() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-600">
-            Complete workflow tracking from boat to dispatch
-          </p>
-        </div>
+        
       </div>
     </div>
   );

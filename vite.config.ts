@@ -1,10 +1,19 @@
 
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
-  import path from 'path';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
 
-  export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Set API base URL based on mode
+  const apiBaseUrl = mode === 'production'
+    ? 'https://fermarmanagement.com/backend'
+    : 'http://127.0.0.1:8000';
+
+  return {
     plugins: [react()],
+    define: {
+      __API_BASE_URL__: JSON.stringify(apiBaseUrl),
+    },
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -57,4 +66,5 @@
       port: 3000,
       open: true,
     },
-  });
+  };
+});

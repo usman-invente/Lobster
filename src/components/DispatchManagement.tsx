@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../lib/axios';
-import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function DispatchManagement() {
@@ -30,10 +30,11 @@ export function DispatchManagement() {
     dispatchDate: '',
     dispatchType: 'export' as 'export' | 'regrade',
     clientAwb: '',
-    line_items: [] as any[]
+    lineItems: [] as any[]
   });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [editSelectedItems, setEditSelectedItems] = useState<any[]>([]);
 
   // Fetch dispatches with server-side features
   const fetchDispatches = async () => {
@@ -124,7 +125,7 @@ export function DispatchManagement() {
       crateId,
       looseStockId,
       size,
-      kg: maxKg,
+      kg: parseFloat(maxKg.toString()) || 0,
       crateNumber,
       isLoose: !crateId,
     };
@@ -139,14 +140,60 @@ export function DispatchManagement() {
 
   const updateItemKg = (id: string, kg: number) => {
     setSelectedItems(selectedItems.map(item =>
-      item.id === id ? { ...item, kg } : item
+      item.id === id ? { ...item, kg: parseFloat(kg.toString()) || 0 } : item
     ));
+  };
+
+  // Helper function to check if a crate is already selected
+  const isItemSelected = (crateId?: string, looseStockId?: string) => {
+    return selectedItems.some(item => 
+      (crateId && item.crateId === crateId) || 
+      (looseStockId && item.looseStockId === looseStockId)
+    );
+  };
+
+  // Helper function to check if an item is already selected in edit modal
+  const isEditItemSelected = (crateId?: string, looseStockId?: string) => {
+    const allItems = [...editForm.lineItems, ...editSelectedItems];
+    return allItems.some(item => 
+      (crateId && item.crateId === crateId) || 
+      (looseStockId && item.looseStockId === looseStockId)
+    );
+  };
+
+  // Edit modal item management
+  const addEditItem = (
+    tankId: string,
+    tankNumber: number,
+    crateId: string | undefined,
+    looseStockId: string | undefined,
+    size: string,
+    maxKg: number,
+    crateNumber?: number
+  ) => {
+    const item = {
+      id: `edit-dispatch-item-${Date.now()}-${Math.random()}`,
+      tankId,
+      tankNumber,
+      crateId,
+      looseStockId,
+      size,
+      kg: parseFloat(maxKg.toString()) || 0,
+      crateNumber,
+      isLoose: !crateId,
+    };
+    setEditSelectedItems([...editSelectedItems, item]);
+  };
+
+  const removeEditItem = (id: string) => {
+    setEditSelectedItems(editSelectedItems.filter(item => item.id !== id));
   };
 
   const calculateSummary = () => {
     const summary: Record<string, number> = { U: 0, A: 0, B: 0, C: 0, D: 0, E: 0 };
     selectedItems.forEach(item => {
-      summary[item.size] += item.kg;
+      const kg = parseFloat(item.kg) || 0;
+      summary[item.size] += kg;
     });
     return summary;
   };
@@ -157,7 +204,7 @@ export function DispatchManagement() {
     setErrors({});
     try {
       const summary = calculateSummary();
-      const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
+      const totalKg = selectedItems.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
       await axios.post('/api/dispatches', {
         type: dispatchType,
         clientAwb,
@@ -176,6 +223,7 @@ export function DispatchManagement() {
       setDispatchDate(new Date().toISOString().split('T')[0]);
       setSelectedItems([]);
       fetchDispatches();
+      fetchTankStock(); // Refresh tank stock data after dispatching
       toast.success('Dispatch created successfully!');
     } catch (error: any) {
       if (error.response && error.response.status === 422) {
@@ -220,8 +268,9 @@ export function DispatchManagement() {
         dispatchDate: fullDispatch.dispatchDate ? new Date(fullDispatch.dispatchDate).toISOString().split('T')[0] : '',
         dispatchType: fullDispatch.type,
         clientAwb: fullDispatch.clientAwb,
-        line_items: fullDispatch.line_items || []
+        lineItems: fullDispatch.line_items || []
       });
+      setEditSelectedItems([]);
       setEditErrors({});
       setShowEditModal(true);
     } catch (error) {
@@ -240,18 +289,24 @@ export function DispatchManagement() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDispatch) return;
-    if (editForm.line_items.length === 0) {
+    const allLineItems = [...editForm.lineItems, ...editSelectedItems];
+    if (allLineItems.length === 0) {
       toast.error('Please add at least one item');
       return;
     }
     setIsEditSubmitting(true);
     setEditErrors({});
     try {
-      await axios.put(`/api/dispatches/${editDispatch.id}`, editForm);
+      const editData = {
+        ...editForm,
+        lineItems: allLineItems
+      };
+      await axios.put(`/api/dispatches/${editDispatch.id}`, editData);
       toast.success('Dispatch updated successfully!');
       setShowEditModal(false);
       setEditDispatch(null);
       fetchDispatches();
+      fetchTankStock(); // Refresh tank stock data after dispatching
     } catch (error: any) {
       if (error.response && error.response.status === 422) {
         const validationErrors = error.response.data.errors;
@@ -366,20 +421,31 @@ export function DispatchManagement() {
                             <div className="mb-3">
                               <p className="text-sm text-gray-600 mb-2">Crates:</p>
                               <div className="space-y-1">
-                                {tank.crates.map(crate => (
-                                  <div key={crate.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                                    <span className="text-sm">
-                                      Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
-                                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                                    >
-                                      Add
-                                    </button>
-                                  </div>
-                                ))}
+                                {tank.crates.map(crate => {
+                                  const selected = isItemSelected(crate.id);
+                                  return (
+                                    <div key={crate.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                      <div className="flex items-center gap-2">
+                                        {selected && <Check className="w-4 h-4 text-green-600" />}
+                                        <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                          Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
+                                        disabled={selected}
+                                        className={`px-3 py-1 rounded text-sm ${
+                                          selected 
+                                            ? 'bg-green-600 text-white cursor-not-allowed' 
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
+                                      >
+                                        {selected ? 'Added' : 'Add'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -388,20 +454,31 @@ export function DispatchManagement() {
                             <div>
                               <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
                               <div className="space-y-1">
-                                {tank.looseStock.map(stock => (
-                                  <div key={stock.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                                    <span className="text-sm">
-                                      Loose - Size {stock.size} - {Number(stock.kg ?? 0).toFixed(2)} kg
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
-                                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                                    >
-                                      Add
-                                    </button>
-                                  </div>
-                                ))}
+                                {tank.looseStock.map(stock => {
+                                  const selected = isItemSelected(undefined, stock.id);
+                                  return (
+                                    <div key={stock.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                      <div className="flex items-center gap-2">
+                                        {selected && <Check className="w-4 h-4 text-green-600" />}
+                                        <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                          Loose - Size {stock.size} - {Number(stock.kg ?? 0).toFixed(2)} kg
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
+                                        disabled={selected}
+                                        className={`px-3 py-1 rounded text-sm ${
+                                          selected 
+                                            ? 'bg-green-600 text-white cursor-not-allowed' 
+                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
+                                      >
+                                        {selected ? 'Added' : 'Add'}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -742,18 +819,127 @@ export function DispatchManagement() {
                   {editErrors.clientAwb && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.clientAwb}</p>}
                 </div>
                 <div className="border-t pt-4">
-                  <h3 className="mb-3">Items ({editForm.line_items.length})</h3>
-                  {editForm.line_items.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No items</p>
+                  <h3 className="mb-3">Existing Items ({editForm.lineItems.length})</h3>
+                  {editForm.lineItems.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No existing items</p>
                   ) : (
                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {editForm.line_items.map((item: any, idx: number) => (
+                      {editForm.lineItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                           <span className="text-sm">
                             Tank {item.tankNumber} - Size {item.size} - {item.kg}kg
                           </span>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {editSelectedItems.length > 0 && (
+                    <>
+                      <h3 className="mb-3 mt-4">New Items ({editSelectedItems.length})</h3>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {editSelectedItems.map((item: any, idx: number) => (
+                          <div key={item.id} className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                            <span className="text-sm">
+                              Tank {item.tankNumber} - Size {item.size} - {item.kg}kg
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeEditItem(item.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="border-t pt-4">
+                  <h3 className="mb-3">Add More Crates</h3>
+                  {tankStock.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No stock available in tanks.</p>
+                      <p className="text-sm mt-2">Please add stock through Recheck & Store process first.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                      {tankStock.map(tank => {
+                        const hasStock = tank.crates.length > 0 || tank.looseStock.length > 0;
+                        if (!hasStock) return null;
+
+                        return (
+                          <div key={tank.tankId} className="border rounded-lg p-4">
+                            <h4 className="mb-3">{tank.tankName} ({Number(tank.summary.totalKg ?? 0).toFixed(2)} kg)</h4>
+                            {/* Crates */}
+                            {tank.crates.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-sm text-gray-600 mb-2">Crates:</p>
+                                <div className="space-y-1">
+                                  {tank.crates.map(crate => {
+                                    const selected = isEditItemSelected(crate.id);
+                                    return (
+                                      <div key={crate.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                        <div className="flex items-center gap-2">
+                                          {selected && <Check className="w-4 h-4 text-green-600" />}
+                                          <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                            Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => addEditItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
+                                          disabled={selected}
+                                          className={`px-3 py-1 rounded text-sm ${
+                                            selected 
+                                              ? 'bg-green-600 text-white cursor-not-allowed' 
+                                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                                          }`}
+                                        >
+                                          {selected ? 'Added' : 'Add'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {/* Loose Stock */}
+                            {tank.looseStock.length > 0 && (
+                              <div>
+                                <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
+                                <div className="space-y-1">
+                                  {tank.looseStock.map(stock => {
+                                    const selected = isEditItemSelected(undefined, stock.id);
+                                    return (
+                                      <div key={stock.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                        <div className="flex items-center gap-2">
+                                          {selected && <Check className="w-4 h-4 text-green-600" />}
+                                          <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                            Loose - Size {stock.size} - {Number(stock.kg ?? 0).toFixed(2)} kg
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => addEditItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
+                                          disabled={selected}
+                                          className={`px-3 py-1 rounded text-sm ${
+                                            selected 
+                                              ? 'bg-green-600 text-white cursor-not-allowed' 
+                                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                                          }`}
+                                        >
+                                          {selected ? 'Added' : 'Add'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

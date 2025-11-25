@@ -3,14 +3,13 @@ import { navigateTo } from './navigation';
 
 // Create axios instance with default config for Laravel Sanctum
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000', // Update this to your Laravel API URL
-  withCredentials: false, // Set to false if using Bearer token instead of cookies
+  baseURL: __API_BASE_URL__,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
 });
-
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {

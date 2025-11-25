@@ -76,6 +76,7 @@ export interface LooseStock {
   fromCrateId?: string;
   boatName?: string;
   offloadDate?: string;
+  status: 'stored' | 'dispatched';
   createdBy: string;
   createdAt: string;
   modifiedBy?: string;

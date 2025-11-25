@@ -10,5 +10,8 @@
   Run `npm run dev` to start the development server.
 
   #build command
-  npx vite build
+  npx vite build -- --mode production
   
+  Production build:
+  npx vite build -- --mode production
+  taskkill /F /IM node.exe

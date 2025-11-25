@@ -227,7 +227,7 @@ export default function App() {
       <BrowserRouter>
         <DataProvider>
           <MainApp />
-        <Toaster position="top-right" richColors duration={1000} />
+        <Toaster position="top-right" richColors duration={2000} />
         </DataProvider>
       </BrowserRouter>
     </Provider>

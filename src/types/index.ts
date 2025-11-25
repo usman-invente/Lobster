@@ -1,4 +1,4 @@
-export type SizeCategory = 'U' | 'A' | 'B' | 'C' | 'D' | 'E';
+export type SizeCategory = 'U' | 'A' | 'B' | 'C' | 'D' | 'E' | 'M';
 
 export interface User {
   id: string;

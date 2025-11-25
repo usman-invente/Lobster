@@ -516,7 +516,7 @@ export function ReceivingManagement() {
                           className={`w-full px-3 py-2 border rounded-lg ${errors[`lineItems.${idx}.size`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                           disabled={isSubmitting}
                         >
-                          {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+                          {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
                             <option key={size} value={size}>{size}</option>
                           ))}
                         </select>
@@ -729,7 +729,7 @@ export function ReceivingManagement() {
                               className={`w-full px-3 py-2 border rounded-lg ${editErrors[`lineItems.${idx}.size`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                               disabled={isEditSubmitting}
                             >
-                              {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+                              {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
                                 <option key={size} value={size}>{size}</option>
                               ))}
                             </select>

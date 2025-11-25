@@ -236,7 +236,6 @@ type Loss = BaseLoss & { id: string; reason?: string };
       const errorDetail = err?.response?.data?.error;
       toast.info(message || 'Failed to save loss adjustment.', {
         description: errorDetail,
-        duration: 5000,
       });
     } finally {
       setSubmitting(false);

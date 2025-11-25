@@ -100,7 +100,7 @@ export function TankManagement() {
                 </div>
                 {/* Per-size weights (example, adjust as needed) */}
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                  {['U','A','B','C','D','E'].map(size => (
+                  {['U','A','B','C','D','E','M'].map(size => (
                     <div key={size} className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
                       <span className="text-xs text-gray-500">Size {size}</span>
                       <span className="font-semibold">{selectedTank[`size${size}_kg`] ?? '0.00'} kg</span>

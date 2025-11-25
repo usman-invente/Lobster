@@ -151,6 +151,26 @@ export function OffloadManagement() {
     setIsSubmitting(true);
     setErrors({}); // Clear previous errors
 
+    // Frontend validation - check required fields
+    const requiredFields = ['boatName', 'tripNumber', 'totalKgOffloaded', 'totalKgReceived'];
+    const missingFields: string[] = [];
+
+    requiredFields.forEach(field => {
+      if (!formData[field as keyof typeof formData]?.toString().trim()) {
+        missingFields.push(field);
+      }
+    });
+
+    if (missingFields.length > 0) {
+      const newErrors: Record<string, string> = {};
+      missingFields.forEach(field => {
+        newErrors[field] = 'This field is required';
+      });
+      setErrors(newErrors);
+      setIsSubmitting(false);
+      return;
+    }
+
     const totalKgAlive = (parseFloat(formData.sizeU) || 0) + (parseFloat(formData.sizeA) || 0) + (parseFloat(formData.sizeB) || 0) + 
                          (parseFloat(formData.sizeC) || 0) + (parseFloat(formData.sizeD) || 0) + (parseFloat(formData.sizeE) || 0) + (parseFloat(formData.sizeM) || 0);
 
@@ -178,33 +198,12 @@ export function OffloadManagement() {
         rottenOnTanks: 0,
       });
       
-      // Success - refresh data from database and close form
+      // Success - refresh data and close form
       await fetchOffloadRecords();
       setShowForm(false);
       
       toast.success('Offload record created successfully!', {
         description: `Created record for ${formData.boatName} - Trip #${formData.tripNumber}`,
-        duration: 4000,
-      });
-      
-      // Reset form
-      setFormData({
-        boatName: '',
-        offloadDate: new Date().toISOString().split('T')[0],
-        tripNumber: '',
-        externalFactory: '',
-        totalKgOffloaded: '',
-        totalKgReceived: '',
-        totalKgDead: '',
-        totalKgRotten: '',
-        totalLive: '',
-        sizeU: '',
-        sizeA: '',
-        sizeB: '',
-        sizeC: '',
-        sizeD: '',
-        sizeE: '',
-        sizeM: '',
       });
     } catch (error: any) {
       console.error('Error creating offload record:', error);
@@ -224,7 +223,6 @@ export function OffloadManagement() {
         // For other errors, show toast
         toast.error('Failed to create offload record', {
           description: 'Please check your connection and try again.',
-          duration: 5000,
         });
       }
     }
@@ -267,12 +265,32 @@ export function OffloadManagement() {
     if (editErrors[field]) setEditErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  // Submit edit
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editRecord) return;
     setIsEditSubmitting(true);
     setEditErrors({});
+
+    // Frontend validation - check required fields
+    const requiredFields = ['boatName', 'tripNumber', 'totalKgOffloaded', 'totalKgReceived'];
+    const missingFields: string[] = [];
+
+    requiredFields.forEach(field => {
+      if (!editForm[field]?.toString().trim()) {
+        missingFields.push(field);
+      }
+    });
+
+    if (missingFields.length > 0) {
+      const newErrors: Record<string, string> = {};
+      missingFields.forEach(field => {
+        newErrors[field] = 'This field is required';
+      });
+      setEditErrors(newErrors);
+      setIsEditSubmitting(false);
+      return;
+    }
+
     const totalKgAlive =
       (parseFloat(editForm.sizeU) || 0) + (parseFloat(editForm.sizeA) || 0) + (parseFloat(editForm.sizeB) || 0) +
       (parseFloat(editForm.sizeC) || 0) + (parseFloat(editForm.sizeD) || 0) + (parseFloat(editForm.sizeE) || 0) + (parseFloat(editForm.sizeM) || 0);
@@ -394,7 +412,6 @@ export function OffloadManagement() {
                     if (errors.boatName) setErrors({ ...errors, boatName: '' });
                   }}
                   className={`w-full px-3 py-2 border rounded-lg ${errors.boatName ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
                 />
                 {errors.boatName && <p className="text-red-600 text-sm mt-1 font-medium">{errors.boatName}</p>}
               </div>
@@ -409,7 +426,6 @@ export function OffloadManagement() {
                     if (errors.offloadDate) setErrors({ ...errors, offloadDate: '' });
                   }}
                   className={`w-full px-3 py-2 border rounded-lg ${errors.offloadDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
                 />
                 {errors.offloadDate && <p className="text-red-600 text-sm mt-1 font-medium">{errors.offloadDate}</p>}
               </div>
@@ -424,7 +440,6 @@ export function OffloadManagement() {
                     if (errors.tripNumber) setErrors({ ...errors, tripNumber: '' });
                   }}
                   className={`w-full px-3 py-2 border rounded-lg ${errors.tripNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
                 />
                 {errors.tripNumber && <p className="text-red-600 text-sm mt-1 font-medium">{errors.tripNumber}</p>}
               </div>
@@ -439,7 +454,6 @@ export function OffloadManagement() {
                     if (errors.externalFactory) setErrors({ ...errors, externalFactory: '' });
                   }}
                   className={`w-full px-3 py-2 border rounded-lg ${errors.externalFactory ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                  disabled={isSubmitting}
                 />
                 {errors.externalFactory && <p className="text-red-600 text-sm mt-1 font-medium">{errors.externalFactory}</p>}
               </div>
@@ -459,7 +473,6 @@ export function OffloadManagement() {
                       if (errors.totalKgOffloaded) setErrors({ ...errors, totalKgOffloaded: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgOffloaded ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                    disabled={isSubmitting}
                   />
                   {errors.totalKgOffloaded && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgOffloaded}</p>}
                 </div>
@@ -475,7 +488,6 @@ export function OffloadManagement() {
                       if (errors.totalKgReceived) setErrors({ ...errors, totalKgReceived: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgReceived ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                    disabled={isSubmitting}
                   />
                   {errors.totalKgReceived && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgReceived}</p>}
                 </div>
@@ -491,7 +503,6 @@ export function OffloadManagement() {
                       if (errors.totalKgDead) setErrors({ ...errors, totalKgDead: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgDead ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                    disabled={isSubmitting}
                   />
                   {errors.totalKgDead && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgDead}</p>}
                 </div>
@@ -507,7 +518,6 @@ export function OffloadManagement() {
                       if (errors.totalKgRotten) setErrors({ ...errors, totalKgRotten: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalKgRotten ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                    disabled={isSubmitting}
                   />
                   {errors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalKgRotten}</p>}
                 </div>
@@ -523,7 +533,6 @@ export function OffloadManagement() {
                       if (errors.totalLive) setErrors({ ...errors, totalLive: '' });
                     }}
                     className={`w-full px-3 py-2 border rounded-lg ${errors.totalLive ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                    disabled={isSubmitting}
                   />
                   {errors.totalLive && <p className="text-red-600 text-sm mt-1 font-medium">{errors.totalLive}</p>}
                 </div>
@@ -548,7 +557,6 @@ export function OffloadManagement() {
                           if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
                         }}
                         className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                        disabled={isSubmitting}
                       />
                       {errors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>}
                     </div>
@@ -560,23 +568,14 @@ export function OffloadManagement() {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Offload Record'
-                )}
+                Create Offload Record
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
               >
                 Cancel
               </button>

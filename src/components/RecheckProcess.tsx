@@ -241,7 +241,7 @@ export function RecheckProcess() {
                       onChange={(e) => setEditedSize(e.target.value as SizeCategory)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     >
-                      {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+                      {(['U', 'A', 'B', 'C', 'D', 'E','M'] as const).map(size => (
                         <option key={size} value={size}>{size}</option>
                       ))}
                     </select>

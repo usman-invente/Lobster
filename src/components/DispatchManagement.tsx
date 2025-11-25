@@ -13,6 +13,8 @@ export function DispatchManagement() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [crateKgInputs, setCrateKgInputs] = useState<Record<string, number>>({});
+  const [looseKgInputs, setLooseKgInputs] = useState<Record<string, number>>({});
 
   // Server-side table state
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,7 +119,7 @@ export function DispatchManagement() {
     crateId: string | undefined,
     looseStockId: string | undefined,
     size: string,
-    maxKg: number,
+    kg: number,
     crateNumber?: number
   ) => {
     const item = {
@@ -127,7 +129,7 @@ export function DispatchManagement() {
       crateId,
       looseStockId,
       size,
-      kg: parseFloat(maxKg.toString()) || 0,
+      kg: parseFloat(kg.toString()) || 0,
       crateNumber,
       isLoose: !crateId,
     };
@@ -238,6 +240,9 @@ export function DispatchManagement() {
         });
         setErrors(formattedErrors);
         toast.error('Please fix the validation errors below.');
+      } else if (error.response && error.response.status === 500 && error.response.data?.error) {
+        // Show specific backend error message
+        toast.error(`Dispatch failed: ${error.response.data.error}`);
       } else {
         toast.error('Failed to create dispatch.');
       }
@@ -438,28 +443,41 @@ export function DispatchManagement() {
                             <div className="mb-3">
                               <p className="text-sm text-gray-600 mb-2">Crates:</p>
                               <div className="space-y-1">
-                                {tank.crates.map(crate => {
+                                {tank.crates.map((crate: any) => {
                                   const selected = isItemSelected(crate.id);
+                                  const inputKg = crateKgInputs[crate.id] ?? crate.kg;
                                   return (
-                                    <div key={crate.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                                      <div className="flex items-center gap-2">
-                                        {selected && <Check className="w-4 h-4 text-green-600" />}
-                                        <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
-                                          Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
-                                        </span>
+                                    <div key={crate.id} className={`p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {selected && <Check className="w-4 h-4 text-green-600" />}
+                                          <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                            Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={inputKg}
+                                            onChange={(e) => setCrateKgInputs(prev => ({...prev, [crate.id]: parseFloat(e.target.value) || 0}))}
+                                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                            disabled={selected}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, inputKg, crate.crateNumber)}
+                                            disabled={selected}
+                                            className={`px-3 py-1 rounded text-sm ${
+                                              selected 
+                                                ? 'bg-green-600 text-white cursor-not-allowed' 
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            }`}
+                                          >
+                                            {selected ? 'Added' : 'Add'}
+                                          </button>
+                                        </div>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, crate.kg, crate.crateNumber)}
-                                        disabled={selected}
-                                        className={`px-3 py-1 rounded text-sm ${
-                                          selected 
-                                            ? 'bg-green-600 text-white cursor-not-allowed' 
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}
-                                      >
-                                        {selected ? 'Added' : 'Add'}
-                                      </button>
                                     </div>
                                   );
                                 })}
@@ -471,28 +489,41 @@ export function DispatchManagement() {
                             <div>
                               <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
                               <div className="space-y-1">
-                                {tank.looseStock.map(stock => {
+                                {tank.looseStock.map((stock: any) => {
                                   const selected = isItemSelected(undefined, stock.id);
+                                  const inputKg = looseKgInputs[stock.id] ?? stock.kg;
                                   return (
-                                    <div key={stock.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                                      <div className="flex items-center gap-2">
-                                        {selected && <Check className="w-4 h-4 text-green-600" />}
-                                        <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
-                                          Loose - Size {stock.size} - {Number(stock.kg ?? 0).toFixed(2)} kg
-                                        </span>
+                                    <div key={stock.id} className={`p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {selected && <Check className="w-4 h-4 text-green-600" />}
+                                          <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
+                                            Loose - Size {stock.size} - {Number(stock.kg ?? 0).toFixed(2)} kg
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={inputKg}
+                                            onChange={(e) => setLooseKgInputs(prev => ({...prev, [stock.id]: parseFloat(e.target.value) || 0}))}
+                                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                            disabled={selected}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, inputKg)}
+                                            disabled={selected}
+                                            className={`px-3 py-1 rounded text-sm ${
+                                              selected 
+                                                ? 'bg-green-600 text-white cursor-not-allowed' 
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            }`}
+                                          >
+                                            {selected ? 'Added' : 'Add'}
+                                          </button>
+                                        </div>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, stock.kg)}
-                                        disabled={selected}
-                                        className={`px-3 py-1 rounded text-sm ${
-                                          selected 
-                                            ? 'bg-green-600 text-white cursor-not-allowed' 
-                                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                                        }`}
-                                      >
-                                        {selected ? 'Added' : 'Add'}
-                                      </button>
                                     </div>
                                   );
                                 })}
@@ -900,7 +931,7 @@ export function DispatchManagement() {
                               <div className="mb-3">
                                 <p className="text-sm text-gray-600 mb-2">Crates:</p>
                                 <div className="space-y-1">
-                                  {tank.crates.map(crate => {
+                                  {tank.crates.map((crate: any) => {
                                     const selected = isEditItemSelected(crate.id);
                                     return (
                                       <div key={crate.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
@@ -933,7 +964,7 @@ export function DispatchManagement() {
                               <div>
                                 <p className="text-sm text-gray-600 mb-2">Loose Stock:</p>
                                 <div className="space-y-1">
-                                  {tank.looseStock.map(stock => {
+                                  {tank.looseStock.map((stock: any) => {
                                     const selected = isEditItemSelected(undefined, stock.id);
                                     return (
                                       <div key={stock.id} className={`flex justify-between items-center p-2 rounded ${selected ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>

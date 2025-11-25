@@ -584,7 +584,7 @@ export function DispatchManagement() {
               {/* Summary */}
               {(() => {
                 const summary = calculateSummary();
-                const totalKg = selectedItems.reduce((sum, item) => sum + item.kg, 0);
+                const totalKg = selectedItems.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
                 return (
                   <div className="bg-white p-6 rounded-lg shadow-md">
                     <h3 className="mb-4">Dispatch Summary</h3>

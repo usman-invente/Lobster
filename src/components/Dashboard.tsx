@@ -64,7 +64,7 @@ export function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-600">Crates in Tanks</p>
               </div>
-              <p className="text-2xl">{stats.crates_stored ?? 0}</p>
+              <p className="text-2xl">{stats.total_crates ?? 0}</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex items-center gap-3 mb-2">
@@ -73,7 +73,7 @@ export function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-600">Dispatched</p>
               </div>
-              <p className="text-2xl">{stats.total_dispatched?.toFixed(2) ?? '0.00'} kg</p>
+              <p className="text-2xl">{Number(stats.total_dispatched ?? 0).toFixed(2)} kg</p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex items-center gap-3 mb-2">
@@ -145,7 +145,7 @@ export function Dashboard() {
                       <p className="text-sm text-gray-600">Trip {record.tripNumber}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm">{(record.totalKgAlive ?? 0).toFixed(2)} kg</p>
+                      <p className="text-sm">{Number(record.totalKgOffloaded ?? 0).toFixed(2)} kg</p>
                       <p className="text-xs text-gray-500">
                         {record.offloadDate ? new Date(record.offloadDate).toLocaleDateString() : ''}
                       </p>

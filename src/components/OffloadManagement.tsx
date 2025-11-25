@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { OffloadRecord } from '../types';
-import { Plus, FileText, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, FileText, Loader2, Search, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
 
@@ -44,6 +44,10 @@ export function OffloadManagement() {
   const [editForm, setEditForm] = useState<any>({});
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  // Print modal state
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printRecord, setPrintRecord] = useState<OffloadRecord | null>(null);
 
   // Format date helper function
   const formatDate = (dateString: string) => {
@@ -240,6 +244,17 @@ export function OffloadManagement() {
     setEditForm({ ...record });
     setEditErrors({});
     setShowEditModal(true);
+  };
+
+  // Open print modal
+  const handlePrintClick = (record: OffloadRecord) => {
+    setPrintRecord(record);
+    setShowPrintModal(true);
+  };
+
+  // Handle print
+  const handlePrint = () => {
+    window.print();
   };
 
   // Handle edit form change
@@ -675,18 +690,25 @@ export function OffloadManagement() {
                   <td className="px-4 py-3">{record.totalKgRotten.toFixed(2)}</td>
                   <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
                     <button
+                      title="Print"
+                      onClick={() => handlePrintClick(record)}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                    </button>
+                    <button
                       title="Edit"
                       onClick={() => handleEditClick(record)}
                       className="text-blue-600 hover:text-blue-800"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3h3z" /></svg>
+                      <Pencil className="h-5 w-5" />
                     </button>
                     <button
                       title="Delete"
                       onClick={() => handleDeleteRecord(record.id)}
                       className="text-red-600 hover:text-red-800"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </td>
                 </tr>
@@ -911,6 +933,112 @@ export function OffloadManagement() {
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && printRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col print-modal-content">
+            <style>
+              {`
+                @media print {
+                  .print-hide {
+                    display: none !important;
+                  }
+                  .print-modal-content {
+                    padding: 0 !important;
+                    overflow: visible !important;
+                  }
+                  body {
+                    print-color-adjust: exact;
+                  }
+                }
+              `}
+            </style>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b print-hide">
+              <h2 className="text-lg font-semibold">Print Offload Record</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  Print
+                </button>
+                <button
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => { setShowPrintModal(false); setPrintRecord(null); }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 print:p-0">
+              {/* Print Title */}
+              <div className="hidden print:block text-center mb-4">
+                <h1 className="text-xl font-bold">Offload Record</h1>
+              </div>
+
+              {/* Offload Header */}
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Boat Name:</strong> {printRecord.boatName}
+                  </div>
+                  <div>
+                    <strong>Offload Date:</strong> {formatDate(printRecord.offloadDate)}
+                  </div>
+                  <div>
+                    <strong>Trip Number:</strong> {printRecord.tripNumber}
+                  </div>
+                  <div>
+                    <strong>External Factory:</strong> {printRecord.externalFactory}
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2">Summary</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Total Kg Offloaded:</strong> {printRecord.totalKgOffloaded.toFixed(2)} kg
+                  </div>
+                  <div>
+                    <strong>Total Kg Received:</strong> {printRecord.totalKgReceived.toFixed(2)} kg
+                  </div>
+                  <div>
+                    <strong>Total Kg Alive:</strong> {printRecord.totalKgAlive.toFixed(2)} kg
+                  </div>
+                  <div>
+                    <strong>Total Kg Dead:</strong> {printRecord.totalKgDead.toFixed(2)} kg
+                  </div>
+                  <div>
+                    <strong>Total Kg Rotten:</strong> {printRecord.totalKgRotten.toFixed(2)} kg
+                  </div>
+                  <div>
+                    <strong>Total Live:</strong> {printRecord.totalKgAlive.toFixed(2)} kg
+                  </div>
+                </div>
+              </div>
+
+              {/* Size Breakdown */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2">Live Lobster by Size</h3>
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div><strong>Size U:</strong> {printRecord.sizeU.toFixed(2)} kg</div>
+                  <div><strong>Size A:</strong> {printRecord.sizeA.toFixed(2)} kg</div>
+                  <div><strong>Size B:</strong> {printRecord.sizeB.toFixed(2)} kg</div>
+                  <div><strong>Size C:</strong> {printRecord.sizeC.toFixed(2)} kg</div>
+                  <div><strong>Size D:</strong> {printRecord.sizeD.toFixed(2)} kg</div>
+                  <div><strong>Size E:</strong> {printRecord.sizeE.toFixed(2)} kg</div>
+                </div>
               </div>
             </div>
           </div>

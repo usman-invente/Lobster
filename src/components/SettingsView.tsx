@@ -681,7 +681,7 @@ export function SettingsView() {
                         required
                         value={tankNumber}
                         onChange={(e) => {
-                          setTankNumber(parseInt(e.target.value) || 0);
+                          setTankNumber(parseInt(e.target.value));
                           if (tankErrors.number) setTankErrors((prev) => ({ ...prev, number: '' }));
                         }}
                         className={`w-full px-3 py-2 border rounded-lg ${tankErrors.number ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}

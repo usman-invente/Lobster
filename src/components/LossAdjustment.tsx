@@ -174,9 +174,19 @@ type Loss = BaseLoss & { id: string; reason?: string };
 
   React.useEffect(() => {
     // Fetch losses and tanks on mount
-    axios.get('/api/loss-adjustments').then(res => setLosses(res.data.data || []));
+    fetchLosses();
     axios.get('/api/tanks').then(res => setAllTankStock(res.data.data || []));
   }, []);
+
+  // Function to fetch losses
+  const fetchLosses = async () => {
+    try {
+      const res = await axios.get('/api/loss-adjustments');
+      setLosses(res.data.data || []);
+    } catch (error) {
+      console.error('Error fetching losses:', error);
+    }
+  };
 
 
   // Fetch crates for selected tank
@@ -229,7 +239,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
       setKg(0);
       setReason('');
       setFormErrors({});
-      // Refresh losses if needed
+      fetchLosses();
     } catch (err: any) {
       // Try to extract server message and error
       const message = err?.response?.data?.message;

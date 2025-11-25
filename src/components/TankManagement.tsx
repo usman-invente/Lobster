@@ -35,6 +35,33 @@ export function TankManagement() {
     selectedTank = { ...selectedTank, looseStock: selectedTank.loose_stock };
   }
 
+  // Calculate size totals from crates and loose stock
+  const calculateSizeTotals = (tank: any) => {
+    const sizeTotals: { [key: string]: number } = {};
+    
+    // Add crate weights by size
+    if (Array.isArray(tank.crates)) {
+      tank.crates.forEach((crate: any) => {
+        if (crate.size && crate.kg) {
+          sizeTotals[crate.size] = (sizeTotals[crate.size] || 0) + parseFloat(crate.kg);
+        }
+      });
+    }
+    
+    // Add loose stock weights by size
+    if (Array.isArray(tank.looseStock)) {
+      tank.looseStock.forEach((stock: any) => {
+        if (stock.size && stock.kg) {
+          sizeTotals[stock.size] = (sizeTotals[stock.size] || 0) + parseFloat(stock.kg);
+        }
+      });
+    }
+    
+    return sizeTotals;
+  };
+
+  const sizeTotals = selectedTank ? calculateSizeTotals(selectedTank) : {};
+
   return (
     <div className="p-4 md:p-6">
       <h1 className="flex items-center gap-2 mb-6">
@@ -103,7 +130,7 @@ export function TankManagement() {
                   {['U','A','B','C','D','E','M'].map(size => (
                     <div key={size} className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
                       <span className="text-xs text-gray-500">Size {size}</span>
-                      <span className="font-semibold">{selectedTank[`size${size}_kg`] ?? '0.00'} kg</span>
+                      <span className="font-semibold">{(sizeTotals[size] || 0).toFixed(2)} kg</span>
                     </div>
                   ))}
                 </div>

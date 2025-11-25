@@ -196,7 +196,7 @@ export function DispatchManagement() {
   };
 
   const calculateSummary = () => {
-    const summary: Record<string, number> = { U: 0, A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const summary: Record<string, number> = { U: 0, A: 0, B: 0, C: 0, D: 0, E: 0, M: 0 };
     selectedItems.forEach(item => {
       const kg = parseFloat(item.kg) || 0;
       summary[item.size] += kg;
@@ -223,6 +223,7 @@ export function DispatchManagement() {
         sizeC: summary.C,
         sizeD: summary.D,
         sizeE: summary.E,
+        sizeM: summary.M,
       });
       setShowForm(false);
       setClientAwb('');
@@ -593,7 +594,7 @@ export function DispatchManagement() {
                         <p className="text-sm text-gray-600">Total</p>
                         <p>{Number(totalKg).toFixed(2)} kg</p>
                       </div>
-                      {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+                      {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
                         <div key={size} className="p-3 bg-gray-50 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Size {size}</p>
                           <p>{Number(summary[size]).toFixed(2)} kg</p>
@@ -1109,6 +1110,7 @@ export function DispatchManagement() {
                     <div className="bg-purple-50 p-2 rounded"><span className="text-gray-600">C:</span> {Number(printDispatch.sizeC ?? 0).toFixed(2)} kg</div>
                     <div className="bg-pink-50 p-2 rounded"><span className="text-gray-600">D:</span> {Number(printDispatch.sizeD ?? 0).toFixed(2)} kg</div>
                     <div className="bg-indigo-50 p-2 rounded"><span className="text-gray-600">E:</span> {Number(printDispatch.sizeE ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-red-50 p-2 rounded"><span className="text-gray-600">M:</span> {Number(printDispatch.sizeM ?? 0).toFixed(2)} kg</div>
                   </div>
                 </div>
 

@@ -36,6 +36,7 @@ export function OffloadManagement() {
     sizeC: '',
     sizeD: '',
     sizeE: '',
+    sizeM: '',
   });
 
   // Edit modal state
@@ -100,6 +101,7 @@ export function OffloadManagement() {
           sizeC: parseFloat(record.sizeC) || 0,
           sizeD: parseFloat(record.sizeD) || 0,
           sizeE: parseFloat(record.sizeE) || 0,
+          sizeM: parseFloat(record.sizeM) || 0,
         };
       });
       
@@ -150,7 +152,7 @@ export function OffloadManagement() {
     setErrors({}); // Clear previous errors
 
     const totalKgAlive = (parseFloat(formData.sizeU) || 0) + (parseFloat(formData.sizeA) || 0) + (parseFloat(formData.sizeB) || 0) + 
-                         (parseFloat(formData.sizeC) || 0) + (parseFloat(formData.sizeD) || 0) + (parseFloat(formData.sizeE) || 0);
+                         (parseFloat(formData.sizeC) || 0) + (parseFloat(formData.sizeD) || 0) + (parseFloat(formData.sizeE) || 0) + (parseFloat(formData.sizeM) || 0);
 
     // Send data to API using axios
     try {
@@ -170,6 +172,7 @@ export function OffloadManagement() {
         sizeC: parseFloat(formData.sizeC) || 0,
         sizeD: parseFloat(formData.sizeD) || 0,
         sizeE: parseFloat(formData.sizeE) || 0,
+        sizeM: parseFloat(formData.sizeM) || 0,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
@@ -201,6 +204,7 @@ export function OffloadManagement() {
         sizeC: '',
         sizeD: '',
         sizeE: '',
+        sizeM: '',
       });
     } catch (error: any) {
       console.error('Error creating offload record:', error);
@@ -271,7 +275,7 @@ export function OffloadManagement() {
     setEditErrors({});
     const totalKgAlive =
       (parseFloat(editForm.sizeU) || 0) + (parseFloat(editForm.sizeA) || 0) + (parseFloat(editForm.sizeB) || 0) +
-      (parseFloat(editForm.sizeC) || 0) + (parseFloat(editForm.sizeD) || 0) + (parseFloat(editForm.sizeE) || 0);
+      (parseFloat(editForm.sizeC) || 0) + (parseFloat(editForm.sizeD) || 0) + (parseFloat(editForm.sizeE) || 0) + (parseFloat(editForm.sizeM) || 0);
     try {
       await axios.put(`/api/offload-records/${editRecord.id}`, {
         boatName: editForm.boatName,
@@ -289,6 +293,7 @@ export function OffloadManagement() {
         sizeC: parseFloat(editForm.sizeC) || 0,
         sizeD: parseFloat(editForm.sizeD) || 0,
         sizeE: parseFloat(editForm.sizeE) || 0,
+        sizeM: parseFloat(editForm.sizeM) || 0,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
@@ -527,8 +532,8 @@ export function OffloadManagement() {
 
             <div className="border-t pt-4">
               <h3 className="mb-3">Live Lobster by Size</h3>
-              <div className="grid grid-cols-6 gap-4">
-                {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => {
+              <div className="grid grid-cols-7 gap-4">
+                {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => {
                   const fieldName = `size${size}` as keyof typeof formData;
                   return (
                     <div key={size}>
@@ -888,7 +893,7 @@ export function OffloadManagement() {
                 <div className="border-t pt-4">
                   <h3 className="mb-3">Live Lobster by Size</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => {
+                    {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => {
                       const fieldName = `size${size}`;
                       return (
                         <div key={size}>
@@ -1038,6 +1043,7 @@ export function OffloadManagement() {
                   <div><strong>Size C:</strong> {printRecord.sizeC.toFixed(2)} kg</div>
                   <div><strong>Size D:</strong> {printRecord.sizeD.toFixed(2)} kg</div>
                   <div><strong>Size E:</strong> {printRecord.sizeE.toFixed(2)} kg</div>
+                  <div><strong>Size M:</strong> {printRecord.sizeM.toFixed(2)} kg</div>
                 </div>
               </div>
             </div>

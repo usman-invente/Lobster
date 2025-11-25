@@ -36,6 +36,7 @@ export interface OffloadRecord {
   sizeC: number;
   sizeD: number;
   sizeE: number;
+  sizeM: number;
   deadOnTanks: number;
   rottenOnTanks: number;
   createdBy: string;

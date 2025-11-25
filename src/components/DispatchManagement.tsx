@@ -131,7 +131,7 @@ export function DispatchManagement() {
       crateId,
       looseStockId,
       size,
-      kg: parseFloat(kg.toString()) || 0,
+      kg: kg.toString(),
       crateNumber,
       isLoose: !crateId,
     };
@@ -144,9 +144,9 @@ export function DispatchManagement() {
     if (errors.lineItems) setErrors(prev => ({...prev, lineItems: ''}));
   };
 
-  const updateItemKg = (id: string, kg: number) => {
+  const updateItemKg = (id: string, kg: string) => {
     setSelectedItems(selectedItems.map(item =>
-      item.id === id ? { ...item, kg: parseFloat(kg.toString()) || 0 } : item
+      item.id === id ? { ...item, kg } : item
     ));
   };
 
@@ -465,7 +465,7 @@ export function DispatchManagement() {
                                             type="number"
                                             step="0.01"
                                             value={inputKg}
-                                            onChange={(e) => setCrateKgInputs(prev => ({...prev, [crate.id]: parseFloat(e.target.value) || 0}))}
+                                            onChange={(e) => setCrateKgInputs(prev => ({...prev, [crate.id]: parseFloat(e.target.value) || ''}))}
                                             className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                                             disabled={selected}
                                           />
@@ -564,7 +564,7 @@ export function DispatchManagement() {
                             type="number"
                             step="0.01"
                             value={item.kg}
-                            onChange={(e) => updateItemKg(item.id, parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateItemKg(item.id, e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           />
                         </div>

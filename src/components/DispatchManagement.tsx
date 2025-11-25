@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../lib/axios';
-import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Check } from 'lucide-react';
+import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Check, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function DispatchManagement() {
@@ -35,6 +35,8 @@ export function DispatchManagement() {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [editSelectedItems, setEditSelectedItems] = useState<any[]>([]);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printDispatch, setPrintDispatch] = useState<any>(null);
 
   // Fetch dispatches with server-side features
   const fetchDispatches = async () => {
@@ -276,6 +278,21 @@ export function DispatchManagement() {
     } catch (error) {
       console.error('Error fetching dispatch details:', error);
       toast.error('Failed to load dispatch details');
+    }
+  };
+
+  // Handle print click
+  const handlePrintClick = async (dispatch: any) => {
+    try {
+      // Fetch the full dispatch details including lineItems
+      const response = await axios.get(`/api/dispatches/${dispatch.id}`);
+      const fullDispatch = response.data.data || response.data;
+      
+      setPrintDispatch(fullDispatch);
+      setShowPrintModal(true);
+    } catch (error) {
+      console.error('Error fetching dispatch details:', error);
+      toast.error('Failed to load dispatch details for printing');
     }
   };
 
@@ -691,8 +708,15 @@ export function DispatchManagement() {
                         </td>
                         <td className="px-4 py-3">{dispatch.clientAwb}</td>
                         <td className="px-4 py-3">{Number(dispatch.totalKg ?? 0).toFixed(2)}</td>
-                        <td className="px-4 py-3">{dispatch.line_items?.length || 0}</td>
+                        <td className="px-4 text-right py-3">{dispatch.line_items?.length || 0}</td>
                         <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
+                          <button
+                            title="Print"
+                            onClick={() => handlePrintClick(dispatch)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </button>
                           <button
                             title="Edit"
                             onClick={() => handleEditClick(dispatch)}
@@ -969,6 +993,108 @@ export function DispatchManagement() {
                 >
                   Cancel
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && printDispatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Dispatch Report</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
+                </button>
+                <button
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  onClick={() => { setShowPrintModal(false); setPrintDispatch(null); }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content - Printable */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                {/* Dispatch Header */}
+                <div className="border-b pb-3">
+                  <h1 className="text-xl font-bold mb-2">Dispatch Report</h1>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    <div><strong>Date:</strong> {printDispatch.dispatchDate ? new Date(printDispatch.dispatchDate).toLocaleDateString() : ''}</div>
+                    <div><strong>Type:</strong> {printDispatch.type}</div>
+                    <div><strong>Client/AWB:</strong> {printDispatch.clientAwb}</div>
+                    <div><strong>Total Weight:</strong> {Number(printDispatch.totalKg ?? 0).toFixed(2)} kg</div>
+                  </div>
+                </div>
+
+                {/* Size Breakdown */}
+                <div>
+                  <h3 className="text-md font-semibold mb-2">Size Breakdown</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-blue-50 p-2 rounded"><span className="text-gray-600">U:</span> {Number(printDispatch.sizeU ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-green-50 p-2 rounded"><span className="text-gray-600">A:</span> {Number(printDispatch.sizeA ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-yellow-50 p-2 rounded"><span className="text-gray-600">B:</span> {Number(printDispatch.sizeB ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-purple-50 p-2 rounded"><span className="text-gray-600">C:</span> {Number(printDispatch.sizeC ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-pink-50 p-2 rounded"><span className="text-gray-600">D:</span> {Number(printDispatch.sizeD ?? 0).toFixed(2)} kg</div>
+                    <div className="bg-indigo-50 p-2 rounded"><span className="text-gray-600">E:</span> {Number(printDispatch.sizeE ?? 0).toFixed(2)} kg</div>
+                  </div>
+                </div>
+
+                {/* Items Summary */}
+                <div>
+                  <h3 className="text-md font-semibold mb-2">Items ({printDispatch.lineItems?.length || 0})</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300 text-sm">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-2 py-1 text-left">Tank</th>
+                          <th className="border border-gray-300 px-2 py-1 text-left">Size</th>
+                          <th className="border border-gray-300 px-2 py-1 text-left">Type</th>
+                          <th className="border border-gray-300 px-2 py-1 text-right">Weight</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {printDispatch.line_items?.slice(0, 10).map((item: any, index: number) => (
+                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="border border-gray-300 px-2 py-1">T{item.tankNumber}</td>
+                            <td className="border border-gray-300 px-2 py-1">{item.size}</td>
+                            <td className="border border-gray-300 px-2 py-1">
+                              {item.isLoose ? 'Loose' : 'Crate'}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-right">
+                              {Number(item.kg ?? 0).toFixed(1)} kg
+                            </td>
+                          </tr>
+                        ))}
+                        {printDispatch.line_items?.length > 10 && (
+                          <tr className="bg-gray-100">
+                            <td colSpan={3} className="border border-gray-300 px-2 py-1 text-center text-gray-600">
+                              ... and {printDispatch.line_items.length - 10} more items
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-right font-semibold">
+                              {Number(printDispatch.totalKg ?? 0).toFixed(1)} kg
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t pt-2 text-center text-xs text-gray-600">
+                  <p>Generated {new Date().toLocaleDateString()}</p>
+                </div>
               </div>
             </div>
           </div>

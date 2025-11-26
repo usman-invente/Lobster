@@ -17,6 +17,7 @@ export function ReceivingManagement() {
   const [lineItems, setLineItems] = useState<Array<{
     boatName: string;
     offloadDate: string;
+    productId: number;
     crateNumber: number;
     size: SizeCategory;
     kg: number;
@@ -39,6 +40,9 @@ export function ReceivingManagement() {
   // State for offload records (to populate boat and date dropdowns)
   const [offloadRecords, setOffloadRecords] = useState<any[]>([]);
 
+  // State for products
+  const [products, setProducts] = useState<any[]>([]);
+
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editBatch, setEditBatch] = useState<any>(null);
@@ -48,6 +52,7 @@ export function ReceivingManagement() {
     lineItems: [] as Array<{
       boatName: string;
       offloadDate: string;
+      productId: number;
       crateNumber: number;
       size: SizeCategory;
       kg: number;
@@ -71,9 +76,19 @@ export function ReceivingManagement() {
         console.error('Error fetching offload records:', error);
       }
     };
+
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get('/api/products');
+        setProducts(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
     
     if (showForm || showEditModal) {
       fetchOffloadRecords();
+      fetchProducts();
     }
   }, [showForm, showEditModal]);
 
@@ -165,6 +180,7 @@ export function ReceivingManagement() {
     setLineItems([...lineItems, {
       boatName: '',
       offloadDate: '',
+      productId: 0,
       crateNumber: availableNumbers[0] || 1,
       size: 'A',
       kg: 0,
@@ -294,6 +310,7 @@ export function ReceivingManagement() {
       lineItems: [...prev.lineItems, {
         boatName: '',
         offloadDate: '',
+        productId: 0,
         crateNumber: availableNumbers[0] || 1,
         size: 'A',
         kg: 0,
@@ -477,6 +494,29 @@ export function ReceivingManagement() {
                             })}
                         </select>
                         {errors[`lineItems.${idx}.offloadDate`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.offloadDate`]}</p>}
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                        <label className="block text-sm text-gray-600 mb-1">Product</label>
+                        <select
+                          required
+                          value={item.productId}
+                          onChange={(e) => {
+                            updateLineItem(idx, 'productId', parseInt(e.target.value));
+                            if (errors[`lineItems.${idx}.productId`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`lineItems.${idx}.productId`];
+                              setErrors(newErrors);
+                            }
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${errors[`lineItems.${idx}.productId`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Select product</option>
+                          {products.map(product => (
+                            <option key={product.id} value={product.id}>{product.name}</option>
+                          ))}
+                        </select>
+                        {errors[`lineItems.${idx}.productId`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.productId`]}</p>}
                       </div>
                       <div className="w-32 flex flex-col">
                         <label className="block text-sm text-gray-600 mb-1">Crate #</label>
@@ -700,6 +740,24 @@ export function ReceivingManagement() {
                                 })}
                             </select>
                             {editErrors[`lineItems.${idx}.offloadDate`] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[`lineItems.${idx}.offloadDate`]}</p>}
+                          </div>
+                          <div className="flex-1 flex flex-col">
+                            <label className="block text-sm text-gray-600 mb-1">Product</label>
+                            <select
+                              required
+                              value={item.productId}
+                              onChange={(e) => {
+                                handleEditLineItemChange(idx, 'productId', parseInt(e.target.value));
+                              }}
+                              className={`w-full px-3 py-2 border rounded-lg ${editErrors[`lineItems.${idx}.productId`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                              disabled={isEditSubmitting}
+                            >
+                              <option value="">Select product</option>
+                              {products.map(product => (
+                                <option key={product.id} value={product.id}>{product.name}</option>
+                              ))}
+                            </select>
+                            {editErrors[`lineItems.${idx}.productId`] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[`lineItems.${idx}.productId`]}</p>}
                           </div>
                           <div className="w-32 flex flex-col">
                             <label className="block text-sm text-gray-600 mb-1">Crate #</label>

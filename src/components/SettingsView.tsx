@@ -4,12 +4,13 @@ import axios from '../lib/axios';
 import { Loader2, ChevronLeft, ChevronRight, Search, Pencil, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { User, Tank } from '../types';
-import { Settings, Plus, UserCircle, Database } from 'lucide-react';
+import { Settings, Plus, UserCircle, Database, Box } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProductManagement } from './ProductManagement';
 
 export function SettingsView() {
   const { currentUser, users, tanks, addUser, addTank, updateTank } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'tanks'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tanks' | 'products'>('users');
   const [showUserForm, setShowUserForm] = useState(false);
   const [refreshUsers, setRefreshUsers] = useState(0);
   const [usersFromApi, setUsersFromApi] = useState<any[]>([]);
@@ -396,6 +397,19 @@ export function SettingsView() {
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4" />
               Tanks
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'products'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Box className="w-4 h-4" />
+              Products
             </div>
           </button>
         </div>
@@ -885,6 +899,13 @@ export function SettingsView() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Products Tab */}
+        {activeTab === 'products' && (
+          <div>
+            <ProductManagement />
           </div>
         )}
       </div>

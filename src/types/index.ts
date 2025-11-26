@@ -39,6 +39,7 @@ export interface OffloadRecord {
   sizeM: number;
   deadOnTanks: number;
   rottenOnTanks: number;
+  productId?: string;
   createdBy: string;
   createdAt: string;
 }
@@ -156,4 +157,17 @@ export interface BoatTripStock {
   totalLost: number;
   totalDispatched: number;
   remaining: StockSummary;
+}
+
+export interface ProductRecord {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  stockQuantity: number;
+  supplier: string;
+  dateAdded: string;
+  createdBy: string;
+  createdAt: string;
 }

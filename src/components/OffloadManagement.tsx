@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
-import { OffloadRecord } from '../types';
+import { OffloadRecord, ProductRecord } from '../types';
 import { Plus, FileText, Loader2, Search, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ export function OffloadManagement() {
     sizeD: '',
     sizeE: '',
     sizeM: '',
+    productId: '',
   });
 
   // Edit modal state
@@ -49,6 +50,10 @@ export function OffloadManagement() {
   // Print modal state
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printRecord, setPrintRecord] = useState<OffloadRecord | null>(null);
+
+  // Products state
+  const [products, setProducts] = useState<ProductRecord[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
 
   // Format date helper function
   const formatDate = (dateString: string) => {
@@ -117,10 +122,32 @@ export function OffloadManagement() {
     }
   };
 
+  // Fetch products from database
+  const fetchProducts = async () => {
+    setIsProductsLoading(true);
+    try {
+      const response = await axios.get('/api/products');
+      const records = response.data.data || [];
+      setProducts(records);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products', {
+        description: 'Please refresh the page to try again.',
+      });
+    } finally {
+      setIsProductsLoading(false);
+    }
+  };
+
   // Load data on component mount and when filters change
   useEffect(() => {
     fetchOffloadRecords();
   }, [currentPage, perPage, searchQuery, sortColumn, sortDirection]);
+
+  // Load products on component mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   // Handle search with debounce
   useEffect(() => {
@@ -193,6 +220,7 @@ export function OffloadManagement() {
         sizeD: parseFloat(formData.sizeD) || 0,
         sizeE: parseFloat(formData.sizeE) || 0,
         sizeM: parseFloat(formData.sizeM) || 0,
+        productId: formData.productId || null,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
@@ -219,6 +247,13 @@ export function OffloadManagement() {
             : validationErrors[key];
         });
         setErrors(formattedErrors);
+
+        // Show toast for the first error
+        const firstErrorKey = Object.keys(validationErrors)[0];
+        const firstErrorMessage = Array.isArray(validationErrors[firstErrorKey]) 
+          ? validationErrors[firstErrorKey][0] 
+          : validationErrors[firstErrorKey];
+        toast.error(firstErrorMessage);
       } else {
         // For other errors, show toast
         toast.error('Failed to create offload record', {
@@ -312,6 +347,7 @@ export function OffloadManagement() {
         sizeD: parseFloat(editForm.sizeD) || 0,
         sizeE: parseFloat(editForm.sizeE) || 0,
         sizeM: parseFloat(editForm.sizeM) || 0,
+        productId: editForm.productId || null,
         totalKgAlive,
         deadOnTanks: 0,
         rottenOnTanks: 0,
@@ -330,6 +366,13 @@ export function OffloadManagement() {
             : validationErrors[key];
         });
         setEditErrors(formattedErrors);
+
+        // Show toast for the first error
+        const firstErrorKey = Object.keys(validationErrors)[0];
+        const firstErrorMessage = Array.isArray(validationErrors[firstErrorKey]) 
+          ? validationErrors[firstErrorKey][0] 
+          : validationErrors[firstErrorKey];
+        toast.error(firstErrorMessage);
       } else {
         toast.error('Failed to update record');
       }
@@ -457,6 +500,24 @@ export function OffloadManagement() {
                 />
                 {errors.externalFactory && <p className="text-red-600 text-sm mt-1 font-medium">{errors.externalFactory}</p>}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Product</label>
+              <select
+                value={formData.productId}
+                onChange={(e) => {
+                  setFormData({ ...formData, productId: e.target.value });
+                  if (errors.productId) setErrors({ ...errors, productId: '' });
+                }}
+                className={`w-full px-3 py-2 border rounded-lg ${errors.productId ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+              >
+                <option value="">Select Product</option>
+                {products.map(product => (
+                  <option key={product.id} value={product.id}>{product.name}</option>
+                ))}
+              </select>
+              {errors.productId && <p className="text-red-600 text-sm mt-1 font-medium">{errors.productId}</p>}
             </div>
 
             <div className="border-t pt-4">
@@ -888,6 +949,21 @@ export function OffloadManagement() {
                     />
                     {editErrors.totalLive && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalLive}</p>}
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Product</label>
+                  <select
+                    value={editForm.productId || ''}
+                    onChange={e => handleEditChange('productId', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${editErrors.productId ? 'border-red-500' : 'border-gray-300'}`}
+                    disabled={isEditSubmitting}
+                  >
+                    <option value="">Select Product</option>
+                    {products.map(product => (
+                      <option key={product.id} value={product.id}>{product.name}</option>
+                    ))}
+                  </select>
+                  {editErrors.productId && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.productId}</p>}
                 </div>
                 <div className="border-t pt-4">
                   <h3 className="mb-3">Live Lobster by Size</h3>

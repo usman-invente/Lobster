@@ -57,6 +57,7 @@ export interface CrateLineItem {
   receivingBatchId: string;
   boatName: string;
   offloadDate: string;
+  productId: number;
   crateNumber: number;
   size: SizeCategory;
   kg: number;

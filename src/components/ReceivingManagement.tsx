@@ -92,6 +92,20 @@ export function ReceivingManagement() {
     }
   }, [showForm, showEditModal]);
 
+  // Fetch products on component mount for table display
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get('/api/products');
+        setProducts(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
+
   // Format date helper function
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -512,9 +526,21 @@ export function ReceivingManagement() {
                           disabled={isSubmitting}
                         >
                           <option value="">Select product</option>
-                          {products.map(product => (
-                            <option key={product.id} value={product.id}>{product.name}</option>
-                          ))}
+                          {(() => {
+                            // Find the matching offload record
+                            const matchingRecord = offloadRecords.find(r => 
+                              r.boatName === item.boatName && 
+                              r.offloadDate.split('T')[0] === item.offloadDate
+                            );
+                            // Filter products to only show the one linked to the offload record
+                            const linkedProductId = matchingRecord?.productId;
+                            const filteredProducts = linkedProductId 
+                              ? products.filter(p => p.id === linkedProductId)
+                              : [];
+                            return filteredProducts.map(product => (
+                              <option key={product.id} value={product.id}>{product.name}</option>
+                            ));
+                          })()}
                         </select>
                         {errors[`lineItems.${idx}.productId`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.productId`]}</p>}
                       </div>
@@ -916,6 +942,7 @@ export function ReceivingManagement() {
                   Batch # {sortColumn === 'batchNumber' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </div>
               </th>
+              <th className="px-4 py-3 text-left text-sm text-gray-600">Products</th>
               <th className="px-4 py-3 text-right text-sm text-gray-600">Crates</th>
               <th className="px-4 py-3 text-left text-sm text-gray-600">Created By</th>
               <th className="px-4 py-3 text-center text-sm text-gray-600">Actions</th>
@@ -924,7 +951,7 @@ export function ReceivingManagement() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Loading batches...
@@ -933,7 +960,7 @@ export function ReceivingManagement() {
               </tr>
             ) : receivingBatches.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   No receiving batches yet. Click "New Receiving Batch" to create one.
                 </td>
               </tr>
@@ -942,6 +969,20 @@ export function ReceivingManagement() {
                 <tr key={batch.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="px-4 py-3">{formatDate(batch.date)}</td>
                   <td className="px-4 py-3">{batch.batchNumber}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      // Get unique product IDs from the batch's crates/line items
+                      const productIds = batch.crates 
+                        ? [...new Set(batch.crates.map((crate: any) => crate.productId).filter(Boolean))]
+                        : [];
+                      // Get product names
+                      const productNames = productIds
+                        .map(id => products.find(p => p.id === id)?.name)
+                        .filter(Boolean)
+                        .join(', ');
+                      return productNames || '-';
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {batch.crates_count || (batch.crates ? batch.crates.length : 0)}
                   </td>

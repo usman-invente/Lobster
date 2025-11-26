@@ -20,6 +20,7 @@ export function RecheckProcess() {
   const [isStoring, setIsStoring] = useState(false);
   const [tanks, setTanks] = useState<any[]>([]);
   const [isRechecking, setIsRechecking] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Fetch tanks from API
   const fetchTanks = async () => {
@@ -29,6 +30,17 @@ export function RecheckProcess() {
     } catch (error) {
       console.error('Error fetching tanks:', error);
       toast.error('Failed to load tanks');
+    }
+  };
+
+  // Fetch products from API
+  const fetchProducts = async () => {
+    try {
+      const response = await axios.get('/api/products');
+      setProducts(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
     }
   };
 
@@ -55,9 +67,10 @@ export function RecheckProcess() {
     }
   };
 
-  // Load tanks and crates on component mount
+  // Load tanks, products and crates on component mount
   useEffect(() => {
     fetchTanks();
+    fetchProducts();
     fetchReceivedCrates();
   }, []);
 
@@ -205,6 +218,9 @@ export function RecheckProcess() {
                       <p className="text-sm text-gray-600 mt-1">
                         {crate.boatName} - {crate.offloadDate}
                       </p>
+                      <p className="text-sm text-gray-600">
+                        Product: {products.find(p => p.id === crate.productId)?.name || 'Unknown'}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p>Size {crate.size}</p>
@@ -227,6 +243,7 @@ export function RecheckProcess() {
                 <p className="text-sm text-gray-600">Original Data</p>
                 <p>Boat: {selectedCrate.boatName}</p>
                 <p>Offload Date: {selectedCrate.offloadDate}</p>
+                <p>Product: {products.find(p => p.id === selectedCrate.productId)?.name || 'Unknown'}</p>
                 <p>Original Size: {selectedCrate.originalSize}</p>
                 <p>Original Weight: {(typeof selectedCrate.originalKg === 'number' ? selectedCrate.originalKg : parseFloat(selectedCrate.originalKg)).toFixed(2)} kg</p>
               </div>

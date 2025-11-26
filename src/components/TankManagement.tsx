@@ -7,6 +7,7 @@ export function TankManagement() {
   const [selectedTankId, setSelectedTankId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchTanks = async () => {
@@ -23,7 +24,18 @@ export function TankManagement() {
         setLoading(false);
       }
     };
+
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get('/api/products');
+        setProducts(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
     fetchTanks();
+    fetchProducts();
   }, []);
 
   // Find selected tank from already-fetched tanks
@@ -144,6 +156,7 @@ export function TankManagement() {
                     <tr className="bg-gray-50">
                       <th className="px-4 py-2 text-left text-sm text-gray-600">Crate #</th>
                       <th className="px-4 py-2 text-left text-sm text-gray-600">Boat</th>
+                      <th className="px-4 py-2 text-left text-sm text-gray-600">Product</th>
                       <th className="px-4 py-2 text-left text-sm text-gray-600">Offload Date</th>
                       <th className="px-4 py-2 text-left text-sm text-gray-600">Size</th>
                       <th className="px-4 py-2 text-right text-sm text-gray-600">Weight (kg)</th>
@@ -155,13 +168,14 @@ export function TankManagement() {
                         <tr key={crate.id}>
                           <td className="px-4 py-2">{crate.crateNumber}</td>
                           <td className="px-4 py-2">{crate.boatName}</td>
+                          <td className="px-4 py-2">{products.find(p => p.id === crate.productId)?.name || 'Unknown'}</td>
                           <td className="px-4 py-2">{crate.offloadDate}</td>
                           <td className="px-4 py-2">{crate.size}</td>
                           <td className="px-4 py-2 text-right">{crate.kg?.toFixed ? crate.kg.toFixed(2) : crate.kg}</td>
                         </tr>
                       ))
                     ) : (
-                      <tr><td colSpan={5} className="text-center text-gray-500 py-4">No crates in this tank.</td></tr>
+                      <tr><td colSpan={6} className="text-center text-gray-500 py-4">No crates in this tank.</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -122,7 +122,8 @@ export function DispatchManagement() {
     looseStockId: string | undefined,
     size: string,
     kg: number,
-    crateNumber?: number
+    crateNumber?: number,
+    productName?: string
   ) => {
     const item = {
       id: `dispatch-item-${Date.now()}-${Math.random()}`,
@@ -134,6 +135,7 @@ export function DispatchManagement() {
       kg: kg.toString(),
       crateNumber,
       isLoose: !crateId,
+      productName,
     };
     setSelectedItems([...selectedItems, item]);
     if (errors.lineItems) setErrors(prev => ({...prev, lineItems: ''}));
@@ -175,7 +177,8 @@ export function DispatchManagement() {
     looseStockId: string | undefined,
     size: string,
     kg: number,
-    crateNumber?: number
+    crateNumber?: number,
+    productName?: string
   ) => {
     const item = {
       id: `edit-dispatch-item-${Date.now()}-${Math.random()}`,
@@ -187,6 +190,7 @@ export function DispatchManagement() {
       kg: parseFloat(kg.toString()) || 0,
       crateNumber,
       isLoose: !crateId,
+      productName,
     };
     setEditSelectedItems([...editSelectedItems, item]);
   };
@@ -458,7 +462,7 @@ export function DispatchManagement() {
                                         <div className="flex items-center gap-2">
                                           {selected && <Check className="w-4 h-4 text-green-600" />}
                                           <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
-                                            Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
+                                            Crate #{crate.crateNumber} - Size {crate.size} - {crate.productName || 'Unknown'} - {Number(crate.kg ?? 0).toFixed(2)} kg
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -472,7 +476,7 @@ export function DispatchManagement() {
                                           />
                                           <button
                                             type="button"
-                                            onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, inputKg, crate.crateNumber)}
+                                            onClick={() => addItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, inputKg, crate.crateNumber, crate.productName)}
                                             disabled={selected}
                                             className={`px-3 py-1 rounded text-sm ${
                                               selected 
@@ -518,7 +522,7 @@ export function DispatchManagement() {
                                           />
                                           <button
                                             type="button"
-                                            onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, inputKg)}
+                                            onClick={() => addItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, inputKg, undefined, undefined)}
                                             disabled={selected}
                                             className={`px-3 py-1 rounded text-sm ${
                                               selected 
@@ -557,7 +561,8 @@ export function DispatchManagement() {
                           <p className="text-sm">
                             Tank {item.tankNumber} - 
                             {item.isLoose ? ' Loose' : ` Crate #${item.crateNumber}`} - 
-                            Size {item.size}
+                            Size {item.size} - 
+                            {item.productName || `Product N/A`}
                           </p>
                         </div>
                         <div className="w-32">
@@ -888,7 +893,7 @@ export function DispatchManagement() {
                       {editForm.lineItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                           <span className="text-sm">
-                            Tank {item.tankNumber} - Size {item.size} - {item.kg}kg
+                            Tank {item.tankNumber} - Size {item.size} - {item.productName || 'Product N/A'} - {item.kg}kg
                           </span>
                         </div>
                       ))}
@@ -901,7 +906,7 @@ export function DispatchManagement() {
                         {editSelectedItems.map((item: any, idx: number) => (
                           <div key={item.id} className="flex justify-between items-center p-2 bg-blue-50 rounded">
                             <span className="text-sm">
-                              Tank {item.tankNumber} - Size {item.size} - {item.kg}kg
+                              Tank {item.tankNumber} - Size {item.size} - {item.productName || `Product N/A`} - {item.kg}kg
                             </span>
                             <button
                               type="button"
@@ -946,7 +951,7 @@ export function DispatchManagement() {
                                           <div className="flex items-center gap-2">
                                             {selected && <Check className="w-4 h-4 text-green-600" />}
                                             <span className={`text-sm ${selected ? 'text-green-800' : ''}`}>
-                                              Crate #{crate.crateNumber} - Size {crate.size} - {Number(crate.kg ?? 0).toFixed(2)} kg
+                                              Crate #{crate.crateNumber} - Size {crate.size} - {crate.productName || 'Unknown'} - {Number(crate.kg ?? 0).toFixed(2)} kg
                                             </span>
                                           </div>
                                           <div className="flex items-center gap-2">
@@ -960,7 +965,7 @@ export function DispatchManagement() {
                                             />
                                             <button
                                               type="button"
-                                              onClick={() => addEditItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, inputKg, crate.crateNumber)}
+                                              onClick={() => addEditItem(tank.tankId, tank.tankNumber, crate.id, undefined, crate.size, inputKg, crate.crateNumber, crate.productName)}
                                               disabled={selected}
                                               className={`px-3 py-1 rounded text-sm ${
                                                 selected 
@@ -1006,7 +1011,7 @@ export function DispatchManagement() {
                                             />
                                             <button
                                               type="button"
-                                              onClick={() => addEditItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, inputKg)}
+                                              onClick={() => addEditItem(tank.tankId, tank.tankNumber, undefined, stock.id, stock.size, inputKg, undefined, undefined)}
                                               disabled={selected}
                                               className={`px-3 py-1 rounded text-sm ${
                                                 selected 
@@ -1122,6 +1127,7 @@ export function DispatchManagement() {
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="border border-gray-300 px-2 py-1 text-left">Tank</th>
+                          <th className="border border-gray-300 px-2 py-1 text-left">Product</th>
                           <th className="border border-gray-300 px-2 py-1 text-left">Size</th>
                           <th className="border border-gray-300 px-2 py-1 text-left">Type</th>
                           <th className="border border-gray-300 px-2 py-1 text-right">Weight</th>
@@ -1131,6 +1137,7 @@ export function DispatchManagement() {
                         {printDispatch.line_items?.slice(0, 10).map((item: any, index: number) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="border border-gray-300 px-2 py-1">T{item.tankNumber}</td>
+                            <td className="border border-gray-300 px-2 py-1">{item.productName || `Product N/A`}</td>
                             <td className="border border-gray-300 px-2 py-1">{item.size}</td>
                             <td className="border border-gray-300 px-2 py-1">
                               {item.isLoose ? 'Loose' : 'Crate'}
@@ -1142,7 +1149,7 @@ export function DispatchManagement() {
                         ))}
                         {printDispatch.line_items?.length > 10 && (
                           <tr className="bg-gray-100">
-                            <td colSpan={3} className="border border-gray-300 px-2 py-1 text-center text-gray-600">
+                            <td colSpan={4} className="border border-gray-300 px-2 py-1 text-center text-gray-600">
                               ... and {printDispatch.line_items.length - 10} more items
                             </td>
                             <td className="border border-gray-300 px-2 py-1 text-right font-semibold">

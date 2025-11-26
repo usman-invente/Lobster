@@ -226,12 +226,32 @@ export function OffloadManagement() {
         rottenOnTanks: 0,
       });
       
-      // Success - refresh data and close form
+      // Success - refresh data and clear form
       await fetchOffloadRecords();
-      setShowForm(false);
       
       toast.success('Offload record created successfully!', {
         description: `Created record for ${formData.boatName} - Trip #${formData.tripNumber}`,
+      });
+
+      // Clear form fields
+      setFormData({
+        boatName: '',
+        offloadDate: new Date().toISOString().split('T')[0],
+        tripNumber: '',
+        externalFactory: '',
+        totalKgOffloaded: '',
+        totalKgReceived: '',
+        totalKgDead: '',
+        totalKgRotten: '',
+        totalLive: '',
+        sizeU: '',
+        sizeA: '',
+        sizeB: '',
+        sizeC: '',
+        sizeD: '',
+        sizeE: '',
+        sizeM: '',
+        productId: '',
       });
     } catch (error: any) {
       console.error('Error creating offload record:', error);
@@ -937,6 +957,8 @@ export function OffloadManagement() {
                     />
                     {editErrors.totalKgRotten && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalKgRotten}</p>}
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">Total Live (kg)</label>
                     <input
@@ -949,21 +971,21 @@ export function OffloadManagement() {
                     />
                     {editErrors.totalLive && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.totalLive}</p>}
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Product</label>
-                  <select
-                    value={editForm.productId || ''}
-                    onChange={e => handleEditChange('productId', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg ${editErrors.productId ? 'border-red-500' : 'border-gray-300'}`}
-                    disabled={isEditSubmitting}
-                  >
-                    <option value="">Select Product</option>
-                    {products.map(product => (
-                      <option key={product.id} value={product.id}>{product.name}</option>
-                    ))}
-                  </select>
-                  {editErrors.productId && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.productId}</p>}
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Product</label>
+                    <select
+                      value={editForm.productId || ''}
+                      onChange={e => handleEditChange('productId', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg ${editErrors.productId ? 'border-red-500' : 'border-gray-300'}`}
+                      disabled={isEditSubmitting}
+                    >
+                      <option value="">Select Product</option>
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>{product.name}</option>
+                      ))}
+                    </select>
+                    {editErrors.productId && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.productId}</p>}
+                  </div>
                 </div>
                 <div className="border-t pt-4">
                   <h3 className="mb-3">Live Lobster by Size</h3>

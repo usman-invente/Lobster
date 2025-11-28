@@ -61,6 +61,10 @@ export function ReceivingManagement() {
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
+  // Print modal state
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printBatch, setPrintBatch] = useState<any>(null);
+
   // Fetch available boats and offload records for the form
   useEffect(() => {
     const fetchOffloadRecords = async () => {
@@ -290,6 +294,17 @@ export function ReceivingManagement() {
     });
     setEditErrors({});
     setShowEditModal(true);
+  };
+
+  // Open print modal
+  const handlePrintClick = (batch: any) => {
+    setPrintBatch(batch);
+    setShowPrintModal(true);
+  };
+
+  // Handle print
+  const handlePrint = () => {
+    window.print();
   };
 
   // Handle edit form change
@@ -526,21 +541,9 @@ export function ReceivingManagement() {
                           disabled={isSubmitting}
                         >
                           <option value="">Select product</option>
-                          {(() => {
-                            // Find the matching offload record
-                            const matchingRecord = offloadRecords.find(r => 
-                              r.boatName === item.boatName && 
-                              r.offloadDate.split('T')[0] === item.offloadDate
-                            );
-                            // Filter products to only show the one linked to the offload record
-                            const linkedProductId = matchingRecord?.productId;
-                            const filteredProducts = linkedProductId 
-                              ? products.filter(p => p.id === linkedProductId)
-                              : [];
-                            return filteredProducts.map(product => (
-                              <option key={product.id} value={product.id}>{product.name}</option>
-                            ));
-                          })()}
+                          {products.map(product => (
+                            <option key={product.id} value={product.id}>{product.name}</option>
+                          ))}
                         </select>
                         {errors[`lineItems.${idx}.productId`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.productId`]}</p>}
                       </div>

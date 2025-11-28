@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { ReceivingBatch, CrateLineItem, SizeCategory } from '../types';
-import { Plus, Trash2, Package, Loader2, Search, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Plus, Trash2, Package, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Printer } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
 
@@ -999,6 +999,13 @@ export function ReceivingManagement() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
+                      title="Print"
+                      onClick={() => handlePrintClick(batch)}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      <Printer className="h-4 w-4 inline" />
+                    </button>
+                    <button
                       title="Delete"
                       onClick={() => handleDeleteBatch(batch.id)}
                       className="text-red-600 hover:text-red-800"
@@ -1055,6 +1062,103 @@ export function ReceivingManagement() {
           </div>
         </div>
       </div>
+      {/* Print Modal */}
+      {showPrintModal && printBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col print-modal-content">
+            <style>{`
+              @media print {
+                .print-hide {
+                  display: none !important;
+                }
+                .print-modal-content {
+                  padding: 0 !important;
+                  overflow: visible !important;
+                }
+                body {
+                  print-color-adjust: exact;
+                }
+              }
+            `}</style>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b print-hide">
+              <h2 className="text-lg font-semibold">Print Receiving Batch</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                >
+                  Print
+                </button>
+                <button
+                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => { setShowPrintModal(false); setPrintBatch(null); }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 print:p-0">
+              {/* Print Title */}
+              <div className="hidden print:block text-center mb-4">
+                <h1 className="text-xl font-bold">Receiving Batch</h1>
+              </div>
+
+              {/* Batch Header */}
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Date:</strong> {formatDate(printBatch.date)}
+                  </div>
+                  <div>
+                    <strong>Batch Number:</strong> {printBatch.batchNumber}
+                  </div>
+                  <div>
+                    <strong>Created By:</strong> {printBatch.user?.name || printBatch.createdBy || '-'}
+                  </div>
+                  <div>
+                    <strong>Crates:</strong> {printBatch.crates_count || (printBatch.crates ? printBatch.crates.length : 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Crate Line Items */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2">Crate Line Items ({(printBatch.crates || printBatch.lineItems || []).length})</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300 text-xs">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-2 py-1 text-left">Boat Name</th>
+                        <th className="border border-gray-300 px-2 py-1 text-left">Offload Date</th>
+                        <th className="border border-gray-300 px-2 py-1 text-left">Product</th>
+                        <th className="border border-gray-300 px-2 py-1 text-left">Crate #</th>
+                        <th className="border border-gray-300 px-2 py-1 text-left">Size</th>
+                        <th className="border border-gray-300 px-2 py-1 text-right">Kg</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(printBatch.crates || printBatch.lineItems || []).map((item: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="border border-gray-300 px-2 py-1">{item.boatName}</td>
+                          <td className="border border-gray-300 px-2 py-1">{formatDate(item.offloadDate)}</td>
+                          <td className="border border-gray-300 px-2 py-1">{products.find((p: any) => p.id === item.productId)?.name || '-'}</td>
+                          <td className="border border-gray-300 px-2 py-1">{item.crateNumber}</td>
+                          <td className="border border-gray-300 px-2 py-1">{item.size}</td>
+                          <td className="border border-gray-300 px-2 py-1 text-right">{item.kg}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -235,7 +235,7 @@ export function DispatchManagement() {
       setSelectedItems([]);
       fetchDispatches();
       fetchTankStock(); // Refresh tank stock data after dispatching
-      toast.success('Dispatch created successfully!');
+      toast.success('Dispatch created successfully!', { duration: 2000 });
     } catch (error: any) {
       if (error.response && error.response.status === 422) {
         const validationErrors = error.response.data.errors;
@@ -263,7 +263,7 @@ export function DispatchManagement() {
     if (!window.confirm('Are you sure you want to delete this dispatch?')) return;
     try {
       await axios.delete(`/api/dispatches/${id}`);
-      toast.success('Dispatch deleted successfully');
+      toast.success('Dispatch deleted successfully', { duration: 2000 });
       fetchDispatches();
     } catch (err) {
       toast.error('Failed to delete dispatch');
@@ -331,7 +331,7 @@ export function DispatchManagement() {
         lineItems: allLineItems
       };
       await axios.put(`/api/dispatches/${editDispatch.id}`, editData);
-      toast.success('Dispatch updated successfully!');
+      toast.success('Dispatch updated successfully!', { duration: 2000 });
       setShowEditModal(false);
       setEditDispatch(null);
       fetchDispatches();

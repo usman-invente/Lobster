@@ -253,8 +253,11 @@ export function OffloadManagement() {
         sizeM: '',
         productId: '',
       });
+
+      setIsSubmitting(false); // Hide loader after success
     } catch (error: any) {
       console.error('Error creating offload record:', error);
+      setIsSubmitting(false); // Hide loader on error
       
       // Check if it's a Laravel validation error (422 status)
       if (error.response && error.response.status === 422) {
@@ -649,14 +652,23 @@ export function OffloadManagement() {
             <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed"
               >
-                Create Offload Record
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Offload Record'
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>

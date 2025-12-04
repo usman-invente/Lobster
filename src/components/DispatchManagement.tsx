@@ -1104,17 +1104,27 @@ export function DispatchManagement() {
                   </div>
                 </div>
 
-                {/* Size Breakdown */}
+                {/* Totals */}
                 <div>
-                  <h3 className="text-md font-semibold mb-2">Size Breakdown</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-blue-50 p-2 rounded"><span className="text-gray-600">U:</span> {Number(printDispatch.sizeU ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-green-50 p-2 rounded"><span className="text-gray-600">A:</span> {Number(printDispatch.sizeA ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-yellow-50 p-2 rounded"><span className="text-gray-600">B:</span> {Number(printDispatch.sizeB ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-purple-50 p-2 rounded"><span className="text-gray-600">C:</span> {Number(printDispatch.sizeC ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-pink-50 p-2 rounded"><span className="text-gray-600">D:</span> {Number(printDispatch.sizeD ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-indigo-50 p-2 rounded"><span className="text-gray-600">E:</span> {Number(printDispatch.sizeE ?? 0).toFixed(2)} kg</div>
-                    <div className="bg-red-50 p-2 rounded"><span className="text-gray-600">M:</span> {Number(printDispatch.sizeM ?? 0).toFixed(2)} kg</div>
+                  <h3 className="text-md font-semibold mb-2">Totals</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300 text-sm">
+                      <tbody>
+                        <tr className="bg-gray-100">
+                          <td className="border border-gray-300 px-2 py-1 font-medium">Total Weight</td>
+                          <td className="border border-gray-300 px-2 py-1 text-right font-bold text-blue-600">{Number(printDispatch.totalKg ?? 0).toFixed(2)} kg</td>
+                        </tr>
+                        {Object.keys(printDispatch).filter(key => key.startsWith('size') && printDispatch[key] > 0).sort((a, b) => a.localeCompare(b)).map(key => {
+                          const size = key.slice(4);
+                          return (
+                            <tr key={size}>
+                              <td className="border border-gray-300 px-2 py-1">Size {size}</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right">{Number(printDispatch[key] ?? 0).toFixed(2)} kg</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 

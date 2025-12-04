@@ -22,6 +22,23 @@ export function RecheckProcess() {
   const [isRechecking, setIsRechecking] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
 
+  // State for sizes of selected product
+  const [productSizes, setProductSizes] = useState<string[]>([]);
+
+  // Update productSizes when selected crate changes
+  useEffect(() => {
+    if (selectedCrate && products.length > 0) {
+      const selectedProduct = products.find((p: any) => p.id === selectedCrate.productId);
+      if (selectedProduct && selectedProduct.sizes) {
+        setProductSizes(selectedProduct.sizes.map((s: any) => s.size));
+      } else {
+        setProductSizes([]);
+      }
+    } else {
+      setProductSizes([]);
+    }
+  }, [selectedCrate, products]);
+
   // Fetch tanks from API
   const fetchTanks = async () => {
     try {
@@ -36,7 +53,9 @@ export function RecheckProcess() {
   // Fetch products from API
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/api/products', {
+        params: { per_page: 'all', with: 'sizes' }
+      });
       setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -258,8 +277,9 @@ export function RecheckProcess() {
                       onChange={(e) => setEditedSize(e.target.value as SizeCategory)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     >
-                      {(['U', 'A', 'B', 'C', 'D', 'E','M'] as const).map(size => (
-                        <option key={size} value={size}>{size}</option>
+                      <option value="">Select size</option>
+                      {productSizes.map((size, i) => (
+                        <option key={i} value={size}>{size}</option>
                       ))}
                     </select>
                   </div>

@@ -65,6 +65,29 @@ export function ReceivingManagement() {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printBatch, setPrintBatch] = useState<any>(null);
 
+  // State for sizes of selected product
+  const [productSizes, setProductSizes] = useState<string[]>([]);
+
+  // Update productSizes when selected product changes
+  useEffect(() => {
+    let selectedProductId = null;
+    if (lineItems.length > 0) {
+      selectedProductId = lineItems[0].productId;
+    } else if (editForm.lineItems.length > 0) {
+      selectedProductId = editForm.lineItems[0].productId;
+    }
+    if (selectedProductId && products.length > 0) {
+      const selectedProduct = products.find((p: any) => p.id === selectedProductId);
+      if (selectedProduct && selectedProduct.sizes) {
+        setProductSizes(selectedProduct.sizes.map((s: any) => s.size));
+      } else {
+        setProductSizes([]);
+      }
+    } else {
+      setProductSizes([]);
+    }
+  }, [lineItems, products, editForm.lineItems]);
+
   // Fetch available boats and offload records for the form
   useEffect(() => {
     const fetchOffloadRecords = async () => {
@@ -83,7 +106,9 @@ export function ReceivingManagement() {
 
     const fetchProducts = async () => {
       try {
-        const response = await axios.get('/api/products');
+        const response = await axios.get('/api/products', {
+          params: { per_page: 'all', with: 'sizes' }
+        });
         setProducts(response.data.data || []);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -100,7 +125,9 @@ export function ReceivingManagement() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await axios.get('/api/products');
+        const response = await axios.get('/api/products', {
+          params: { per_page: 'all', with: 'sizes' }
+        });
         setProducts(response.data.data || []);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -455,6 +482,15 @@ export function ReceivingManagement() {
                   Add Crate
                 </button>
               </div>
+              {/* Show sizes for selected product */}
+              {productSizes.length > 0 && (
+                <div className="mb-2">
+                  <span className="font-medium text-gray-700">Sizes for selected product: </span>
+                  {productSizes.map((size, idx) => (
+                    <span key={idx} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm text-gray-700 mr-2 mb-1">{size}</span>
+                  ))}
+                </div>
+              )}
               {errors.lineItems && <p className="text-red-600 text-sm mb-2 font-medium">{errors.lineItems}</p>}
 
               {lineItems.length === 0 ? (
@@ -585,8 +621,9 @@ export function ReceivingManagement() {
                           className={`w-full px-3 py-2 border rounded-lg ${errors[`lineItems.${idx}.size`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                           disabled={isSubmitting}
                         >
-                          {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
-                            <option key={size} value={size}>{size}</option>
+                          <option value="">Select size</option>
+                          {productSizes.map((size, i) => (
+                            <option key={i} value={size}>{size}</option>
                           ))}
                         </select>
                         {errors[`lineItems.${idx}.size`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`lineItems.${idx}.size`]}</p>}
@@ -715,6 +752,15 @@ export function ReceivingManagement() {
                       Add Crate
                     </button>
                   </div>
+                  {/* Show sizes for selected product in edit form */}
+                  {productSizes.length > 0 && (
+                    <div className="mb-2">
+                      <span className="font-medium text-gray-700">Sizes for selected product: </span>
+                      {productSizes.map((size, idx) => (
+                        <span key={idx} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm text-gray-700 mr-2 mb-1">{size}</span>
+                      ))}
+                    </div>
+                  )}
                   {editErrors.lineItems && <p className="text-red-600 text-sm mb-2 font-medium">{editErrors.lineItems}</p>}
 
                   {editForm.lineItems.length === 0 ? (
@@ -816,8 +862,9 @@ export function ReceivingManagement() {
                               className={`w-full px-3 py-2 border rounded-lg ${editErrors[`lineItems.${idx}.size`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                               disabled={isEditSubmitting}
                             >
-                              {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
-                                <option key={size} value={size}>{size}</option>
+                              <option value="">Select size</option>
+                              {productSizes.map((size, i) => (
+                                <option key={i} value={size}>{size}</option>
                               ))}
                             </select>
                             {editErrors[`lineItems.${idx}.size`] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[`lineItems.${idx}.size`]}</p>}

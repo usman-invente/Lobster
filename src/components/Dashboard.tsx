@@ -7,8 +7,11 @@ export function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>('all');
 
   useEffect(() => {
+    // Fetch global stats
     const fetchStats = async () => {
       setLoading(true);
       setError('');
@@ -22,7 +25,41 @@ export function Dashboard() {
       }
     };
     fetchStats();
+    // Fetch products for dropdown
+    const fetchProducts = async () => {
+      try {
+        const response = await axios.get('/api/products');
+        const productList = response.data.data || [];
+        setProducts(productList);
+        if (productList.length > 0) {
+          setSelectedProduct(productList[0].id.toString());
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchProducts();
   }, []);
+
+  // State for size breakdown
+  const [sizeBreakdown, setSizeBreakdown] = useState<any>(null);
+  useEffect(() => {
+    if (!selectedProduct || selectedProduct === 'all') {
+      setSizeBreakdown(stats?.size_breakdown ?? null);
+      return;
+    }
+    const fetchSizeBreakdown = async () => {
+      try {
+        const response = await axios.get('/api/dashboard-stats', {
+          params: { product: selectedProduct }
+        });
+        setSizeBreakdown(response.data.size_breakdown);
+      } catch (err) {
+        setSizeBreakdown(null);
+      }
+    };
+    fetchSizeBreakdown();
+  }, [selectedProduct, stats]);
 
   return (
     <div className="p-4 md:p-6">
@@ -90,16 +127,29 @@ export function Dashboard() {
 
       {/* Stock by Size */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h2 className="mb-4">Current Stock by Size</h2>
-        {stats && stats.size_breakdown ? (
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <h2 className="mb-0">Current Stock by Size</h2>
+          <div className="flex items-center ml-auto">
+            <label htmlFor="product-filter" className="mr-2 text-sm text-gray-600">Product:</label>
+            <select
+              id="product-filter"
+              value={selectedProduct}
+              onChange={e => setSelectedProduct(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="all">All Products</option>
+              {products.map((product: any) => (
+                <option key={product.id} value={product.id}>{product.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {sizeBreakdown ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-            {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
+            {(['U', 'A', 'B', 'C', 'D', 'E','M'] as const).map(size => (
               <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-1">Size {size}</p>
-                <p className="text-xl">{Number(stats.size_breakdown[size] ?? 0).toFixed(2)} kg</p>
-                {/* <p className="text-xs text-gray-500 mt-1">
-                  {stats.total_stock_kg ? (Number(stats.size_breakdown[size] ?? 0) / stats.total_stock_kg * 100).toFixed(1) : '0.0'}%
-                </p> */}
+                <p className="text-xl">{Number(sizeBreakdown[size] ?? 0).toFixed(2)} kg</p>
               </div>
             ))}
           </div>

@@ -23,6 +23,8 @@ export function ProductManagement() {
   const [formData, setFormData] = useState({
     name: '',
   });
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [sizeInput, setSizeInput] = useState('');
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -131,6 +133,11 @@ export function ProductManagement() {
         missingFields.push(field);
       }
     });
+    if (sizes.length === 0) {
+      setErrors(prev => ({ ...prev, sizes: 'Add at least one size' }));
+      setIsSubmitting(false);
+      return;
+    }
 
     if (missingFields.length > 0) {
       const newErrors: Record<string, string> = {};
@@ -146,12 +153,14 @@ export function ProductManagement() {
     try {
       const response = await axios.post('/api/products', {
         name: formData.name,
+        sizes,
       });
-      
       // Success - refresh data and close form
       await fetchProductRecords();
       setShowForm(false);
-      
+      setFormData({ name: '' });
+      setSizes([]);
+      setSizeInput('');
       toast.success('Product record created successfully!', {
         description: `Created product ${formData.name}`,
       });
@@ -195,7 +204,7 @@ export function ProductManagement() {
   // Open edit modal and populate form
   const handleEditClick = (record: ProductRecord) => {
     setEditRecord(record);
-    setEditForm({ ...record });
+    setEditForm({ ...record, sizes: record.sizes ? [...record.sizes.map((s: any) => (typeof s === 'string' ? s : s.size))] : [] });
     setEditErrors({});
     setShowEditModal(true);
   };
@@ -205,6 +214,7 @@ export function ProductManagement() {
     setEditForm((prev: any) => ({ ...prev, [field]: value }));
     if (editErrors[field]) setEditErrors((prev) => ({ ...prev, [field]: '' }));
   };
+  const [editSizeInput, setEditSizeInput] = useState('');
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +231,11 @@ export function ProductManagement() {
         missingFields.push(field);
       }
     });
+    if (!editForm.sizes || editForm.sizes.length === 0) {
+      setEditErrors(prev => ({ ...prev, sizes: 'Add at least one size' }));
+      setIsEditSubmitting(false);
+      return;
+    }
 
     if (missingFields.length > 0) {
       const newErrors: Record<string, string> = {};
@@ -235,6 +250,7 @@ export function ProductManagement() {
     try {
       await axios.put(`/api/products/${editRecord.id}`, {
         name: editForm.name,
+        sizes: editForm.sizes,
       });
       toast.success('Product record updated successfully!');
       setShowEditModal(false);
@@ -333,6 +349,49 @@ export function ProductManagement() {
                 placeholder="Enter product name"
               />
               {errors.name && <p className="text-red-600 text-sm mt-1 font-medium">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Product Sizes</label>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={sizeInput}
+                  onChange={e => setSizeInput(e.target.value)}
+                  className={`px-3 py-2 border rounded-lg ${errors.sizes ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                  placeholder="Enter size (e.g. U, A, B, etc.)"
+                  maxLength={10}
+                />
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  onClick={() => {
+                    const val = sizeInput.trim();
+                    if (val && !sizes.includes(val)) {
+                      setSizes([...sizes, val]);
+                      setSizeInput('');
+                      setErrors(prev => ({ ...prev, sizes: '' }));
+                    }
+                  }}
+                >
+                  Add Size
+                </button>
+              </div>
+              {errors.sizes && <p className="text-red-600 text-sm mt-1 font-medium">{errors.sizes}</p>}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {sizes.map((size, idx) => (
+                  <span key={idx} className="px-3 py-1 bg-gray-200 rounded-full text-sm flex items-center gap-1">
+                    {size}
+                    <button
+                      type="button"
+                      className="ml-1 text-red-500 hover:text-red-700"
+                      onClick={() => setSizes(sizes.filter((s, i) => i !== idx))}
+                    >
+                      &times;
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -502,6 +561,51 @@ export function ProductManagement() {
                     placeholder="Enter product name"
                   />
                   {editErrors.name && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.name}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Product Sizes</label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={editSizeInput}
+                      onChange={e => setEditSizeInput(e.target.value)}
+                      className={`px-3 py-2 border rounded-lg ${editErrors.sizes ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="Enter size (e.g. U, A, B, etc.)"
+                      maxLength={10}
+                      disabled={isEditSubmitting}
+                    />
+                    <button
+                      type="button"
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      disabled={isEditSubmitting}
+                      onClick={() => {
+                        const val = editSizeInput.trim();
+                        if (val && !(editForm.sizes || []).includes(val)) {
+                          handleEditChange('sizes', [...(editForm.sizes || []), val]);
+                          setEditSizeInput('');
+                          setEditErrors(prev => ({ ...prev, sizes: '' }));
+                        }
+                      }}
+                    >
+                      Add Size
+                    </button>
+                  </div>
+                  {editErrors.sizes && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors.sizes}</p>}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(editForm.sizes || []).map((size: string, idx: number) => (
+                      <span key={idx} className="px-3 py-1 bg-gray-200 rounded-full text-sm flex items-center gap-1">
+                        {size}
+                        <button
+                          type="button"
+                          className="ml-1 text-red-500 hover:text-red-700"
+                          disabled={isEditSubmitting}
+                          onClick={() => handleEditChange('sizes', (editForm.sizes || []).filter((s: string, i: number) => i !== idx))}
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </form>
             </div>

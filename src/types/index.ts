@@ -163,12 +163,13 @@ export interface BoatTripStock {
 export interface ProductRecord {
   id: string;
   name: string;
-  description: string;
-  price: number;
-  category: string;
-  stockQuantity: number;
-  supplier: string;
-  dateAdded: string;
-  createdBy: string;
-  createdAt: string;
+  description?: string;
+  price?: number;
+  category?: string;
+  stockQuantity?: number;
+  supplier?: string;
+  dateAdded?: string;
+  createdBy?: string;
+  createdAt?: string;
+  sizes?: Array<string | { size: string }>;
 }

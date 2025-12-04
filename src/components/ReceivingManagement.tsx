@@ -1205,28 +1205,38 @@ export function ReceivingManagement() {
               {/* Totals */}
               <div className="mb-4">
                 <h3 className="text-sm font-semibold mb-2">Totals</h3>
-                <div className="text-sm">
-                  {(() => {
-                    const items = printBatch.crates || printBatch.lineItems || [];
-                    const totalKg = items.reduce((sum: number, item: any) => sum + (Number(item.kg) || 0), 0);
-                    const sizeTotals = items.reduce((acc: any, item: any) => {
-                      const size = item.size;
-                      acc[size] = (acc[size] || 0) + (Number(item.kg) || 0);
-                      return acc;
-                    }, {});
-                    return (
-                      <>
-                        <div><strong>Total Kg:</strong> {totalKg.toFixed(2)} kg</div>
-                        <div><strong>Total Crates:</strong> {items.length}</div>
-                        <div className="mt-2">
-                          <strong>Totals by Size:</strong>
-                          {Object.keys(sizeTotals).sort().map(size => (
-                            <div key={size}>Size {size}: {sizeTotals[size].toFixed(2)} kg</div>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300 text-sm">
+                    <tbody>
+                      {(() => {
+                        const items = printBatch.crates || printBatch.lineItems || [];
+                        const totalKg = items.reduce((sum: number, item: any) => sum + (Number(item.kg) || 0), 0);
+                        const sizeTotals = items.reduce((acc: any, item: any) => {
+                          const size = item.size;
+                          acc[size] = (acc[size] || 0) + (Number(item.kg) || 0);
+                          return acc;
+                        }, {});
+                        return (
+                          <>
+                            <tr className="bg-gray-100">
+                              <td className="border border-gray-300 px-2 py-1 font-medium">Total Kg</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right font-bold text-blue-600">{totalKg.toFixed(2)} kg</td>
+                            </tr>
+                            <tr>
+                              <td className="border border-gray-300 px-2 py-1 font-medium">Total Crates</td>
+                              <td className="border border-gray-300 px-2 py-1 text-right font-bold text-green-600">{items.length}</td>
+                            </tr>
+                            {Object.keys(sizeTotals).sort().map(size => (
+                              <tr key={size}>
+                                <td className="border border-gray-300 px-2 py-1">Size {size}</td>
+                                <td className="border border-gray-300 px-2 py-1 text-right">{sizeTotals[size].toFixed(2)} kg</td>
+                              </tr>
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

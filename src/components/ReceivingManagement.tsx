@@ -1201,6 +1201,34 @@ export function ReceivingManagement() {
                   </table>
                 </div>
               </div>
+
+              {/* Totals */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2">Totals</h3>
+                <div className="text-sm">
+                  {(() => {
+                    const items = printBatch.crates || printBatch.lineItems || [];
+                    const totalKg = items.reduce((sum: number, item: any) => sum + (Number(item.kg) || 0), 0);
+                    const sizeTotals = items.reduce((acc: any, item: any) => {
+                      const size = item.size;
+                      acc[size] = (acc[size] || 0) + (Number(item.kg) || 0);
+                      return acc;
+                    }, {});
+                    return (
+                      <>
+                        <div><strong>Total Kg:</strong> {totalKg.toFixed(2)} kg</div>
+                        <div><strong>Total Crates:</strong> {items.length}</div>
+                        <div className="mt-2">
+                          <strong>Totals by Size:</strong>
+                          {Object.keys(sizeTotals).sort().map(size => (
+                            <div key={size}>Size {size}: {sizeTotals[size].toFixed(2)} kg</div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         </div>

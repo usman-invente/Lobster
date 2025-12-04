@@ -137,12 +137,12 @@ export function TankManagement() {
                     <span className="text-2xl font-bold">{selectedTank.loose_count ?? 0}</span>
                   </div>
                 </div>
-                {/* Per-size weights (example, adjust as needed) */}
+                {/* Per-size weights (dynamic based on actual sizes in tank) */}
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                  {['U','A','B','C','D','E','M'].map(size => (
+                  {Object.keys(sizeTotals).sort().map(size => (
                     <div key={size} className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
                       <span className="text-xs text-gray-500">Size {size}</span>
-                      <span className="font-semibold">{(sizeTotals[size] || 0).toFixed(2)} kg</span>
+                      <span className="font-semibold">{sizeTotals[size].toFixed(2)} kg</span>
                     </div>
                   ))}
                 </div>

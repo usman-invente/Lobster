@@ -8,7 +8,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [products, setProducts] = useState<any[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<string>('');
 
   useEffect(() => {
     // Fetch global stats
@@ -43,12 +43,14 @@ export function Dashboard() {
 
   // State for size breakdown
   const [sizeBreakdown, setSizeBreakdown] = useState<any>(null);
+  const [sizeLoading, setSizeLoading] = useState(false);
   useEffect(() => {
-    if (!selectedProduct || selectedProduct === 'all') {
-      setSizeBreakdown(stats?.size_breakdown ?? null);
+    if (!selectedProduct) {
+      setSizeBreakdown(null);
       return;
     }
     const fetchSizeBreakdown = async () => {
+      setSizeLoading(true);
       try {
         const response = await axios.get('/api/dashboard-stats', {
           params: { product: selectedProduct }
@@ -56,10 +58,12 @@ export function Dashboard() {
         setSizeBreakdown(response.data.size_breakdown);
       } catch (err) {
         setSizeBreakdown(null);
+      } finally {
+        setSizeLoading(false);
       }
     };
     fetchSizeBreakdown();
-  }, [selectedProduct, stats]);
+  }, [selectedProduct]);
 
   return (
     <div className="p-4 md:p-6">
@@ -137,16 +141,20 @@ export function Dashboard() {
               onChange={e => setSelectedProduct(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
-              <option value="all">All Products</option>
+              <option value="">Select Product</option>
               {products.map((product: any) => (
                 <option key={product.id} value={product.id}>{product.name}</option>
               ))}
             </select>
           </div>
         </div>
-        {sizeBreakdown ? (
+        {sizeLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+          </div>
+        ) : sizeBreakdown ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-            {(['U', 'A', 'B', 'C', 'D', 'E','M'] as const).map(size => (
+            {Object.keys(sizeBreakdown).sort().map(size => (
               <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-sm text-gray-600 mb-1">Size {size}</p>
                 <p className="text-xl">{Number(sizeBreakdown[size] ?? 0).toFixed(2)} kg</p>

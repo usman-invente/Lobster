@@ -200,9 +200,10 @@ export function DispatchManagement() {
   };
 
   const calculateSummary = () => {
-    const summary: Record<string, number> = { U: 0, A: 0, B: 0, C: 0, D: 0, E: 0, M: 0 };
+    const summary: Record<string, number> = {};
     selectedItems.forEach(item => {
       const kg = parseFloat(item.kg) || 0;
+      if (!summary[item.size]) summary[item.size] = 0;
       summary[item.size] += kg;
     });
     return summary;
@@ -215,20 +216,18 @@ export function DispatchManagement() {
     try {
       const summary = calculateSummary();
       const totalKg = selectedItems.reduce((sum, item) => sum + (parseFloat(item.kg) || 0), 0);
-      await axios.post('/api/dispatches', {
+      const payload: any = {
         type: dispatchType,
         clientAwb,
         dispatchDate,
         lineItems: selectedItems,
         totalKg,
-        sizeU: summary.U,
-        sizeA: summary.A,
-        sizeB: summary.B,
-        sizeC: summary.C,
-        sizeD: summary.D,
-        sizeE: summary.E,
-        sizeM: summary.M,
+      };
+      // Add size fields dynamically
+      Object.keys(summary).forEach(size => {
+        payload[`size${size}`] = summary[size];
       });
+      await axios.post('/api/dispatches', payload);
       setShowForm(false);
       setClientAwb('');
       setDispatchDate(new Date().toISOString().split('T')[0]);
@@ -599,7 +598,7 @@ export function DispatchManagement() {
                         <p className="text-sm text-gray-600">Total</p>
                         <p>{Number(totalKg).toFixed(2)} kg</p>
                       </div>
-                      {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => (
+                      {Object.keys(summary).sort().map(size => (
                         <div key={size} className="p-3 bg-gray-50 rounded-lg text-center">
                           <p className="text-sm text-gray-600">Size {size}</p>
                           <p>{Number(summary[size]).toFixed(2)} kg</p>

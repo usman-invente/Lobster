@@ -60,7 +60,7 @@ type Loss = BaseLoss & { id: string; reason?: string };
       if (editLoss.date && new Date(editLoss.date) > new Date()) errors.date = 'Date cannot be in the future.';
       if (editLoss.tankId && isNaN(Number(editLoss.tankId))) errors.tankId = 'Tank is required.';
       if (editLoss.type && !['dead','rotten','lost'].includes(editLoss.type)) errors.type = 'Invalid type.';
-      if (editLoss.size && !['U','A','B','C','D','E','M'].includes(editLoss.size)) errors.size = 'Invalid size.';
+
       if (editLoss.kg && (isNaN(Number(editLoss.kg)) || Number(editLoss.kg) < 0.01)) errors.kg = 'Kg must be at least 0.01.';
       if (editLoss.kg && Number(editLoss.kg) > 9999.99) errors.kg = 'Kg must be less than 9999.99.';
       if (editLoss.reason && editLoss.reason.length > 500) errors.reason = 'Notes must be 500 characters or less.';
@@ -211,7 +211,6 @@ type Loss = BaseLoss & { id: string; reason?: string };
     if (!selectedTank) errors.tankId = 'Tank is required.';
     if (!lossType) errors.type = 'Type is required.';
     if (!selectedItem || !selectedItem.size) errors.size = 'Size is required.';
-    else if (!['U','A','B','C','D','E','M'].includes(selectedItem.size)) errors.size = 'Invalid size.';
     if (!kg || isNaN(kg)) errors.kg = 'Kg is required.';
     else if (kg < 0.01) errors.kg = 'Kg must be at least 0.01.';
     else if (kg > 9999.99) errors.kg = 'Kg must be less than 9999.99.';

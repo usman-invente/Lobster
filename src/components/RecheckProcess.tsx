@@ -154,6 +154,7 @@ export function RecheckProcess() {
           fromCrateId: selectedCrate.id,
           boatName: selectedCrate.boatName,
           offloadDate: selectedCrate.offloadDate,
+          productId: selectedCrate.productId,
         });
         // Mark crate as emptied
         await axios.put(`/api/crates/${selectedCrate.id}`, {

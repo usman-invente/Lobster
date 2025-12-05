@@ -10,10 +10,43 @@ type ReportType = 'stock-by-tank' | 'stock-by-size' | 'stock-by-boat';
 export function ReportsView() {
   const [reportType, setReportType] = useState<ReportType>('stock-by-tank');
   const [tankStock, setTankStock] = useState<any[]>([]);
-  const [stockBySize, setStockBySize] = useState<any>({ totalKg: 0, sizeU: 0, sizeA: 0, sizeB: 0, sizeC: 0, sizeD: 0, sizeE: 0 });
+  const [stockBySize, setStockBySize] = useState<any>({});
   const [boatTripStock, setBoatTripStock] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Products for stock by size
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<string>('');
+  const [productSizes, setProductSizes] = useState<string[]>([]);
+
+  // Fetch products for stock by size
+  useEffect(() => {
+    if (reportType === 'stock-by-size' && products.length === 0) {
+      axios.get('/api/products')
+        .then(res => {
+          setProducts(res.data.data || []);
+        })
+        .catch(() => {
+          setProducts([]);
+        });
+    }
+  }, [reportType, products.length]);
+
+  // Update productSizes when selectedProduct changes
+  useEffect(() => {
+    if (selectedProduct && products.length > 0) {
+      const product = products.find(p => p.id == selectedProduct);
+      if (product && product.sizes) {
+        const sizes = product.sizes.map((s: any) => typeof s === 'string' ? s : s.size);
+        setProductSizes(sizes);
+      } else {
+        setProductSizes([]);
+      }
+    } else {
+      setProductSizes([]);
+    }
+  }, [selectedProduct, products]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -29,15 +62,20 @@ export function ReportsView() {
         })
         .finally(() => setIsLoading(false));
     } else if (reportType === 'stock-by-size') {
-      axios.get('/api/reports/stock-by-size')
-        .then(res => {
-          setStockBySize(res.data.data || { totalKg: 0, sizeU: 0, sizeA: 0, sizeB: 0, sizeC: 0, sizeD: 0, sizeE: 0 });
-        })
-        .catch(() => {
-          setStockBySize({ totalKg: 0, sizeU: 0, sizeA: 0, sizeB: 0, sizeC: 0, sizeD: 0, sizeE: 0 });
-          setError('Failed to load stock by size.');
-        })
-        .finally(() => setIsLoading(false));
+      if (selectedProduct) {
+        axios.get('/api/reports/stock-by-size', { params: { productId: selectedProduct } })
+          .then(res => {
+            setStockBySize(res.data.data || {});
+          })
+          .catch(() => {
+            setStockBySize({});
+            setError('Failed to load stock by size.');
+          })
+          .finally(() => setIsLoading(false));
+      } else {
+        setStockBySize({});
+        setIsLoading(false);
+      }
     } else if (reportType === 'stock-by-boat') {
       axios.get('/api/reports/stock-by-boat')
         .then(res => {
@@ -51,7 +89,7 @@ export function ReportsView() {
     } else {
       setIsLoading(false);
     }
-  }, [reportType]);
+  }, [reportType, selectedProduct]);
 
   // Helper to format date (YYYY-MM-DD)
   function formatDate(dateString: string) {
@@ -77,17 +115,13 @@ export function ReportsView() {
   }
 
   function exportStockBySize() {
-    const data = [
-      {
-        Total: stockBySize.totalKg,
-        U: stockBySize.sizeU,
-        A: stockBySize.sizeA,
-        B: stockBySize.sizeB,
-        C: stockBySize.sizeC,
-        D: stockBySize.sizeD,
-        E: stockBySize.sizeE
-      }
-    ];
+    if (!productSizes.length) return;
+    const data = productSizes.map((size, index) => {
+      const fixed = ['1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'][index] || '1';
+      const value = stockBySize[`size${fixed}`] || 0;
+      return { Size: size, 'Kg': value };
+    });
+    data.push({ Size: 'Total', 'Kg': stockBySize.totalKg || 0 });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'StockBySize');
@@ -226,6 +260,20 @@ export function ReportsView() {
           <div className="space-y-4">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h2 className="mb-4">Factory-Wide Stock by Size</h2>
+
+              <div className="mb-4">
+                <label className="block text-sm text-gray-600 mb-2">Select Product</label>
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg border-gray-300"
+                >
+                  <option value="">Select a product</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>{product.name}</option>
+                  ))}
+                </select>
+              </div>
                
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
@@ -233,53 +281,63 @@ export function ReportsView() {
                 </div>
               ) : error ? (
                 <div className="text-red-500 py-8 text-center">{error}</div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4">
+              ) : selectedProduct && productSizes.length > 0 ? (
+                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${productSizes.length + 1}, minmax(0, 1fr))` }}>
                   <div className="p-4 bg-blue-50 rounded-lg text-center">
                     <p className="text-sm text-gray-600">Total</p>
-                    <p className="text-2xl">{Number(stockBySize.totalKg).toFixed(2)} kg</p>
+                    <p className="text-2xl">{Number(stockBySize.totalKg || 0).toFixed(2)} kg</p>
                   </div>
-                  {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => (
-                    <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
-                      <p className="text-sm text-gray-600">Size {size}</p>
-                      <p className="text-2xl">{Number(stockBySize[`size${size}`]).toFixed(2)}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {((Number(stockBySize[`size${size}`]) / (Number(stockBySize.totalKg) || 1)) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="mb-4">Size Distribution Chart</h3>
-              {isLoading ? (
-                <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
-                  <Loader2 className="w-5 h-5 animate-spin" /> Loading...
-                </div>
-              ) : error ? (
-                <div className="text-red-500 py-8 text-center">{error}</div>
-              ) : (
-                <div className="h-64 flex items-end gap-4">
-                  {(['U', 'A', 'B', 'C', 'D', 'E'] as const).map(size => {
-                    const percentage = (Number(stockBySize[`size${size}`]) / (Number(stockBySize.totalKg) || 1)) * 100;
+                  {productSizes.map((size, index) => {
+                    const fixed = ['1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'][index] || '1';
+                    const value = stockBySize[`size${fixed}`] || 0;
                     return (
-                      <div key={size} className="flex-1 flex flex-col items-center">
-                        <div className="w-full flex items-end justify-center" style={{ height: '200px' }}>
-                          <div
-                            className="w-full bg-blue-500 rounded-t transition-all"
-                            style={{ height: `${percentage}%` }}
-                          ></div>
-                        </div>
-                        <p className="mt-2">Size {size}</p>
-                        <p className="text-sm text-gray-600">{Number(stockBySize[`size${size}`]).toFixed(1)} kg</p>
+                      <div key={size} className="p-4 bg-gray-50 rounded-lg text-center">
+                        <p className="text-sm text-gray-600">Size {size}</p>
+                        <p className="text-2xl">{Number(value).toFixed(2)}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {((Number(value) / (Number(stockBySize.totalKg) || 1)) * 100).toFixed(1)}%
+                        </p>
                       </div>
                     );
                   })}
                 </div>
+              ) : (
+                <div className="text-gray-500 py-8 text-center">Select a product to view stock by size</div>
               )}
             </div>
+
+            {selectedProduct && productSizes.length > 0 && (
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="mb-4">Size Distribution Chart</h3>
+                {isLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin" /> Loading...
+                  </div>
+                ) : error ? (
+                  <div className="text-red-500 py-8 text-center">{error}</div>
+                ) : (
+                  <div className="h-64 flex items-end gap-4">
+                    {productSizes.map((size, index) => {
+                      const fixed = ['1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'][index] || '1';
+                      const value = stockBySize[`size${fixed}`] || 0;
+                      const percentage = (Number(value) / (Number(stockBySize.totalKg) || 1)) * 100;
+                      return (
+                        <div key={size} className="flex-1 flex flex-col items-center">
+                          <div className="w-full flex items-end justify-center" style={{ height: '200px' }}>
+                            <div
+                              className="w-full bg-blue-500 rounded-t transition-all"
+                              style={{ height: `${percentage}%` }}
+                            ></div>
+                          </div>
+                          <p className="mt-2">Size {size}</p>
+                          <p className="text-sm text-gray-600">{Number(value).toFixed(1)} kg</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

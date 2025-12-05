@@ -65,6 +65,15 @@ export function OffloadManagement() {
     });
   };
 
+  // Format date for input field (YYYY-MM-DD)
+  const formatDateForInput = (dateString: string) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Helper function to get size value from record
   const getSizeValue = (record: any, fixed: string) => {
     if (record.sizes && typeof record.sizes[fixed] !== 'undefined') return record.sizes[fixed];
@@ -385,7 +394,10 @@ export function OffloadManagement() {
   // Open edit modal and populate form
   const handleEditClick = (record: OffloadRecord) => {
     setEditRecord(record);
-    setEditForm({ ...record });
+    setEditForm({ 
+      ...record,
+      offloadDate: formatDateForInput(record.offloadDate)
+    });
     setEditErrors({});
     setShowEditModal(true);
   };

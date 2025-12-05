@@ -114,19 +114,55 @@ export function ReportsView() {
     saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_tank.xlsx');
   }
 
-  function exportStockBySize() {
-    if (!productSizes.length) return;
-    const data = productSizes.map((size, index) => {
-      const fixed = ['1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'][index] || '1';
-      const value = stockBySize[`size${fixed}`] || 0;
-      return { Size: size, 'Kg': value };
+  async function exportStockBySize() {
+    if (!products.length) return;
+
+    // Collect all unique sizes across all products
+    const allSizes = new Set<string>();
+    products.forEach(product => {
+      if (product.sizes) {
+        product.sizes.forEach((s: any) => {
+          const size = typeof s === 'string' ? s : s.size;
+          allSizes.add(size);
+        });
+      }
     });
-    data.push({ Size: 'Total', 'Kg': stockBySize.totalKg || 0 });
+
+    // Fetch data for each product and organize by size
+    const sizeData: Record<string, any> = {};
+    allSizes.forEach(size => {
+      sizeData[size] = { Size: size };
+    });
+
+    // Fetch and populate data for each product
+    const promises = products.map(async (product) => {
+      try {
+        const res = await axios.get('/api/reports/stock-by-size', { params: { productId: product.id } });
+        const stockData = res.data.data || {};
+        const productSizes = product.sizes.map((s: any) => typeof s === 'string' ? s : s.size);
+        
+        productSizes.forEach((size, index) => {
+          const fixed = ['1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'][index] || '1';
+          const value = stockData[`size${fixed}`] || 0;
+          if (sizeData[size]) {
+            sizeData[size][product.name] = value;
+          }
+        });
+      } catch (error) {
+        console.error(`Error fetching data for product ${product.id}:`, error);
+      }
+    });
+
+    await Promise.all(promises);
+
+    // Convert to array format for export
+    const data = Array.from(allSizes).map(size => sizeData[size]);
+
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'StockBySize');
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_size.xlsx');
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), 'stock_by_size_all_products.xlsx');
   }
 
   function exportBoatTripStock() {
@@ -186,7 +222,7 @@ export function ReportsView() {
           {reportType === 'stock-by-size' && (
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={exportStockBySize}
+              onClick={async () => await exportStockBySize()}
               disabled={isLoading}
             >
               Export to Excel

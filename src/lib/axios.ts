@@ -3,7 +3,7 @@ import { navigateTo } from './navigation';
 
 // Create axios instance with default config for Laravel Sanctum
 const axiosInstance = axios.create({
-  baseURL: __API_BASE_URL__,
+  baseURL: __API_BASE_URL__,    //__API_BASE_URL__
   withCredentials: false,
   headers: {
     'Content-Type': 'application/json',

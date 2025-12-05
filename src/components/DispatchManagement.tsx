@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../lib/axios';
-import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Check, Printer } from 'lucide-react';
+import { Send, Plus, Trash2, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Check, Printer, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 export function DispatchManagement() {
   const [dispatches, setDispatches] = useState<any[]>([]);
@@ -304,6 +306,124 @@ export function DispatchManagement() {
     } catch (error) {
       console.error('Error fetching dispatch details:', error);
       toast.error('Failed to load dispatch details for printing');
+    }
+  };
+
+  // Handle export to Excel
+  const handleExportToExcel = async (dispatch: any) => {
+    try {
+      // Fetch the full dispatch details including lineItems
+      const response = await axios.get(`/api/dispatches/${dispatch.id}`);
+      const fullDispatch = response.data.data || response.data;
+      
+      if (!fullDispatch.line_items || fullDispatch.line_items.length === 0) {
+        toast.error('No items in this dispatch');
+        return;
+      }
+
+      // Fetch products to get proper names
+      const productsResponse = await axios.get('/api/products?per_page=all');
+      const products = new Map();
+      (productsResponse.data.data || []).forEach((p: any) => {
+        products.set(p.id, p.name);
+      });
+
+      // Get all unique sizes from line items
+      const allSizes = new Set<string>();
+      fullDispatch.line_items.forEach((item: any) => {
+        // Check different possible size field names
+        const size = item.size || item.crate_size || item.sizeCategory || item.looseSize;
+        if (size) allSizes.add(size);
+      });
+      const sortedSizes = Array.from(allSizes).sort();
+
+      if (sortedSizes.length === 0) {
+        toast.error('No size information found in dispatch items');
+        return;
+      }
+
+      // Group items by product and calculate totals by size
+      const productData = new Map<string, Map<string, number>>();
+      
+      fullDispatch.line_items.forEach((item: any) => {
+        // Get product name - try multiple sources
+        let productName = item.product?.name || item.productName;
+        
+        // If still not found, try to get it from product ID
+        if (!productName && (item.product_id || item.productId)) {
+          const pId = item.product_id || item.productId;
+          productName = products.get(pId);
+        }
+        
+        productName = productName || 'Unknown';
+        
+        const size = item.size || item.crate_size || item.sizeCategory || item.looseSize;
+        
+        if (!size) return;
+        
+        if (!productData.has(productName)) {
+          productData.set(productName, new Map());
+        }
+        
+        const sizeMap = productData.get(productName)!;
+        // Handle both crate_kg and loose_kg
+        const kg = parseFloat(item.crate_kg || item.loose_kg || item.kg || 0) || 0;
+        sizeMap.set(size, (sizeMap.get(size) || 0) + kg);
+      });
+
+      // Build excel data
+      const excelData: any[] = [];
+      
+      // Add dispatch info at top
+      excelData.push(['DISPATCH REPORT']);
+      excelData.push(['Dispatch #', fullDispatch.clientAwb || fullDispatch.id]);
+      excelData.push([]);
+      
+      // Header row
+      excelData.push(['Product', ...sortedSizes]);
+
+      // Data rows
+      const sizeTotals = new Map<string, number>();
+
+      productData.forEach((sizeMap, productName) => {
+        const row: any[] = [productName];
+
+        sortedSizes.forEach(size => {
+          const value = sizeMap.get(size) || 0;
+          row.push(value);
+          sizeTotals.set(size, (sizeTotals.get(size) || 0) + value);
+        });
+
+        excelData.push(row);
+      });
+
+      // Total row
+      const totalRow: any[] = ['Total'];
+      sortedSizes.forEach(size => {
+        totalRow.push(sizeTotals.get(size) || 0);
+      });
+      excelData.push(totalRow);
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 20 },
+        ...sortedSizes.map(() => ({ wch: 12 }))
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Dispatch Report');
+      
+      const filename = `dispatch_${fullDispatch.clientAwb || fullDispatch.id}_report.xlsx`;
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+      
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export report');
     }
   };
 
@@ -757,6 +877,13 @@ export function DispatchManagement() {
                             className="text-green-600 hover:text-green-800"
                           >
                             <Printer className="h-4 w-4" />
+                          </button>
+                          <button
+                            title="Export to Excel"
+                            onClick={() => handleExportToExcel(dispatch)}
+                            className="text-orange-600 hover:text-orange-800"
+                          >
+                            <Download className="h-4 w-4" />
                           </button>
                           <button
                             title="Edit"

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { ReceivingBatch, CrateLineItem, SizeCategory } from '../types';
-import { Plus, Trash2, Package, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Printer } from 'lucide-react';
+import { Plus, Trash2, Package, Loader2, Search, ChevronLeft, ChevronRight, Pencil, Printer, Download } from 'lucide-react';
 import axios from '../lib/axios';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 export function ReceivingManagement() {
   const { currentUser } = useData();
@@ -332,6 +334,88 @@ export function ReceivingManagement() {
   // Handle print
   const handlePrint = () => {
     window.print();
+  };
+
+  // Handle export to Excel
+  const handleExportToExcel = (batch: any) => {
+    try {
+      if (!batch.crates || batch.crates.length === 0) {
+        toast.error('No crates in this batch');
+        return;
+      }
+
+      // Get all unique sizes
+      const allSizes = new Set<string>();
+      batch.crates.forEach((crate: any) => {
+        if (crate.size) allSizes.add(crate.size);
+      });
+      const sortedSizes = Array.from(allSizes).sort();
+
+      // Group crates by boat and calculate totals by size
+      const boatData = new Map<string, Map<string, number>>();
+      
+      batch.crates.forEach((crate: any) => {
+        if (!crate.boatName || !crate.size) return;
+        
+        if (!boatData.has(crate.boatName)) {
+          boatData.set(crate.boatName, new Map());
+        }
+        
+        const sizeMap = boatData.get(crate.boatName)!;
+        const kg = parseFloat(crate.kg) || 0;
+        sizeMap.set(crate.size, (sizeMap.get(crate.size) || 0) + kg);
+      });
+
+      // Build excel data
+      const excelData: any[] = [];
+      
+      // Header row
+      excelData.push(['Batch #', 'Boat Name', ...sortedSizes]);
+
+      // Data rows
+      const sizeTotals = new Map<string, number>();
+
+      boatData.forEach((sizeMap, boatName) => {
+        const row: any[] = [batch.batchNumber, boatName];
+
+        sortedSizes.forEach(size => {
+          const value = sizeMap.get(size) || 0;
+          row.push(value);
+          sizeTotals.set(size, (sizeTotals.get(size) || 0) + value);
+        });
+
+        excelData.push(row);
+      });
+
+      // Total row
+      const totalRow: any[] = ['', 'Total'];
+      sortedSizes.forEach(size => {
+        totalRow.push(sizeTotals.get(size) || 0);
+      });
+      excelData.push(totalRow);
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 18 },
+        ...sortedSizes.map(() => ({ wch: 10 }))
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Batch Report');
+      
+      const filename = `batch_${batch.batchNumber}_report.xlsx`;
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+      
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export report');
+    }
   };
 
   // Handle edit form change
@@ -1051,6 +1135,13 @@ export function ReceivingManagement() {
                       className="text-green-600 hover:text-green-800"
                     >
                       <Printer className="h-4 w-4 inline" />
+                    </button>
+                    <button
+                      title="Export to Excel"
+                      onClick={() => handleExportToExcel(batch)}
+                      className="text-orange-600 hover:text-orange-800"
+                    >
+                      <Download className="h-4 w-4" />
                     </button>
                     <button
                       title="Delete"

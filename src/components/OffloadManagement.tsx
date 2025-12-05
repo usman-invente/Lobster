@@ -30,15 +30,9 @@ export function OffloadManagement() {
     totalKgDead: '',
     totalKgRotten: '',
     totalLive: '',
-    sizeU: '',
-    sizeA: '',
-    sizeB: '',
-    sizeC: '',
-    sizeD: '',
-    sizeE: '',
-    sizeM: '',
     productId: '',
   });
+  const [sizes, setSizes] = useState<Record<string, string>>({});
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -57,6 +51,9 @@ export function OffloadManagement() {
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [productSizes, setProductSizes] = useState<string[]>([]);
   const [editProductSizes, setEditProductSizes] = useState<string[]>([]);
+  const [editSizes, setEditSizes] = useState<Record<string, string>>({});
+
+  const fixedKeys = ['U', 'A', 'B', 'C', 'D', 'E', 'M'];
 
   // Format date helper function
   const formatDate = (dateString: string) => {
@@ -66,6 +63,18 @@ export function OffloadManagement() {
       month: 'short',
       day: '2-digit'
     });
+  };
+
+  // Helper function to get size value from record
+  const getSizeValue = (record: any, fixed: string) => {
+    if (record.sizes && typeof record.sizes[fixed] !== 'undefined') return record.sizes[fixed];
+    // Legacy mappings
+    const legacyMap: Record<string, string> = { 'U': '1', 'A': 'w2', 'B': 'w3', 'C': 'w4', 'D': 'w5', 'E': 'w6', 'M': 'w7' };
+    const legacyKey = legacyMap[fixed];
+    if (record.sizes && typeof record.sizes[legacyKey] !== 'undefined') return record.sizes[legacyKey];
+    // Old attributes
+    const attrKey = `size${fixed}`;
+    return record[attrKey] || 0;
   };
 
   // Fetch offload records from database with server-side features
@@ -103,13 +112,7 @@ export function OffloadManagement() {
           totalKgDead: parseFloat(record.totalKgDead) || 0,
           totalKgRotten: parseFloat(record.totalKgRotten) || 0,
           totalKgAlive: parseFloat(record.totalLive) || 0,
-          sizeU: parseFloat(record.sizeU) || 0,
-          sizeA: parseFloat(record.sizeA) || 0,
-          sizeB: parseFloat(record.sizeB) || 0,
-          sizeC: parseFloat(record.sizeC) || 0,
-          sizeD: parseFloat(record.sizeD) || 0,
-          sizeE: parseFloat(record.sizeE) || 0,
-          sizeM: parseFloat(record.sizeM) || 0,
+          sizes: record.sizes || {},
         };
       });
       
@@ -157,12 +160,22 @@ export function OffloadManagement() {
     if (formData.productId && products.length > 0) {
       const selectedProduct = products.find((p: any) => p.id == formData.productId);
       if (selectedProduct && selectedProduct.sizes) {
-        setProductSizes(selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size));
+        const sizeNames = selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size);
+        setProductSizes(sizeNames);
+        // Initialize sizes object with fixed keys
+        const initialSizes: Record<string, string> = {};
+        sizeNames.forEach((size, i) => {
+          const key = fixedKeys[i] || 'U';
+          initialSizes[key] = '';
+        });
+        setSizes(initialSizes);
       } else {
         setProductSizes([]);
+        setSizes({});
       }
     } else {
       setProductSizes([]);
+      setSizes({});
     }
   }, [formData.productId, products]);
 
@@ -171,14 +184,41 @@ export function OffloadManagement() {
     if (editForm.productId && products.length > 0) {
       const selectedProduct = products.find((p: any) => p.id == editForm.productId);
       if (selectedProduct && selectedProduct.sizes) {
-        setEditProductSizes(selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size));
+        const sizeNames = selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size);
+        setEditProductSizes(sizeNames);
+        // Initialize editSizes object with existing values, mapping legacy keys to fixed keys
+        const sizesObj = editForm.sizes || {};
+        const mappedSizes: Record<string, string> = {};
+        fixedKeys.forEach((key) => {
+          if (sizesObj[key]) {
+            mappedSizes[key] = sizesObj[key].toString();
+          } else {
+            // Check legacy mappings
+            const legacyMap: Record<string, string> = { 'U': '1', 'A': 'w2', 'B': 'w3', 'C': 'w4', 'D': 'w5', 'E': 'w6', 'M': 'w7' };
+            const legacyKey = legacyMap[key];
+            if (sizesObj[legacyKey]) {
+              mappedSizes[key] = sizesObj[legacyKey].toString();
+            } else {
+              // Check old attributes
+              const attrKey = `size${key}`;
+              if (editForm[attrKey]) {
+                mappedSizes[key] = editForm[attrKey].toString();
+              } else {
+                mappedSizes[key] = '';
+              }
+            }
+          }
+        });
+        setEditSizes(mappedSizes);
       } else {
         setEditProductSizes([]);
+        setEditSizes({});
       }
     } else {
       setEditProductSizes([]);
+      setEditSizes({});
     }
-  }, [editForm.productId, products]);
+  }, [editForm.productId, products, editForm]);
 
   // Update printSizes when printRecord changes
   useEffect(() => {
@@ -243,33 +283,29 @@ export function OffloadManagement() {
       return;
     }
 
-    const totalKgAlive = (parseFloat(formData.sizeU) || 0) + (parseFloat(formData.sizeA) || 0) + (parseFloat(formData.sizeB) || 0) + 
-                         (parseFloat(formData.sizeC) || 0) + (parseFloat(formData.sizeD) || 0) + (parseFloat(formData.sizeE) || 0) + (parseFloat(formData.sizeM) || 0);
+    const totalKgAlive = Object.values(sizes).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+    // Build payload with dynamic sizes as JSON
+    const payload: any = {
+      boatName: formData.boatName,
+      offloadDate: formData.offloadDate,
+      tripNumber: formData.tripNumber,
+      externalFactory: formData.externalFactory,
+      totalKgOffloaded: parseFloat(formData.totalKgOffloaded) || 0,
+      totalKgReceived: parseFloat(formData.totalKgReceived) || 0,
+      totalKgDead: parseFloat(formData.totalKgDead) || 0,
+      totalKgRotten: parseFloat(formData.totalKgRotten) || 0,
+      totalLive: parseFloat(formData.totalLive) || 0,
+      productId: formData.productId || null,
+      sizes: sizes,
+      totalKgAlive,
+      deadOnTanks: 0,
+      rottenOnTanks: 0,
+    };
 
     // Send data to API using axios
     try {
-      const response = await axios.post('/api/offload-records', {
-        boatName: formData.boatName,
-        offloadDate: formData.offloadDate,
-        tripNumber: formData.tripNumber,
-        externalFactory: formData.externalFactory,
-        totalKgOffloaded: parseFloat(formData.totalKgOffloaded) || 0,
-        totalKgReceived: parseFloat(formData.totalKgReceived) || 0,
-        totalKgDead: parseFloat(formData.totalKgDead) || 0,
-        totalKgRotten: parseFloat(formData.totalKgRotten) || 0,
-        totalLive: parseFloat(formData.totalLive) || 0,
-        sizeU: parseFloat(formData.sizeU) || 0,
-        sizeA: parseFloat(formData.sizeA) || 0,
-        sizeB: parseFloat(formData.sizeB) || 0,
-        sizeC: parseFloat(formData.sizeC) || 0,
-        sizeD: parseFloat(formData.sizeD) || 0,
-        sizeE: parseFloat(formData.sizeE) || 0,
-        sizeM: parseFloat(formData.sizeM) || 0,
-        productId: formData.productId || null,
-        totalKgAlive,
-        deadOnTanks: 0,
-        rottenOnTanks: 0,
-      });
+      const response = await axios.post('/api/offload-records', payload);
       
       // Success - refresh data and clear form
       await fetchOffloadRecords();
@@ -289,15 +325,9 @@ export function OffloadManagement() {
         totalKgDead: '',
         totalKgRotten: '',
         totalLive: '',
-        sizeU: '',
-        sizeA: '',
-        sizeB: '',
-        sizeC: '',
-        sizeD: '',
-        sizeE: '',
-        sizeM: '',
         productId: '',
       });
+      setSizes({});
 
       setIsSubmitting(false); // Hide loader after success
     } catch (error: any) {
@@ -394,32 +424,28 @@ export function OffloadManagement() {
       return;
     }
 
-    const totalKgAlive =
-      (parseFloat(editForm.sizeU) || 0) + (parseFloat(editForm.sizeA) || 0) + (parseFloat(editForm.sizeB) || 0) +
-      (parseFloat(editForm.sizeC) || 0) + (parseFloat(editForm.sizeD) || 0) + (parseFloat(editForm.sizeE) || 0) + (parseFloat(editForm.sizeM) || 0);
+    const totalKgAlive = Object.values(editSizes).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+    // Build payload with dynamic sizes as JSON
+    const payload: any = {
+      boatName: editForm.boatName,
+      offloadDate: editForm.offloadDate,
+      tripNumber: editForm.tripNumber,
+      externalFactory: editForm.externalFactory,
+      totalKgOffloaded: parseFloat(editForm.totalKgOffloaded) || 0,
+      totalKgReceived: parseFloat(editForm.totalKgReceived) || 0,
+      totalKgDead: parseFloat(editForm.totalKgDead) || 0,
+      totalKgRotten: parseFloat(editForm.totalKgRotten) || 0,
+      totalLive: parseFloat(editForm.totalLive) || 0,
+      productId: editForm.productId || null,
+      sizes: editSizes,
+      totalKgAlive,
+      deadOnTanks: 0,
+      rottenOnTanks: 0,
+    };
+
     try {
-      await axios.put(`/api/offload-records/${editRecord.id}`, {
-        boatName: editForm.boatName,
-        offloadDate: editForm.offloadDate,
-        tripNumber: editForm.tripNumber,
-        externalFactory: editForm.externalFactory,
-        totalKgOffloaded: parseFloat(editForm.totalKgOffloaded) || 0,
-        totalKgReceived: parseFloat(editForm.totalKgReceived) || 0,
-        totalKgDead: parseFloat(editForm.totalKgDead) || 0,
-        totalKgRotten: parseFloat(editForm.totalKgRotten) || 0,
-        totalLive: parseFloat(editForm.totalLive) || 0,
-        sizeU: parseFloat(editForm.sizeU) || 0,
-        sizeA: parseFloat(editForm.sizeA) || 0,
-        sizeB: parseFloat(editForm.sizeB) || 0,
-        sizeC: parseFloat(editForm.sizeC) || 0,
-        sizeD: parseFloat(editForm.sizeD) || 0,
-        sizeE: parseFloat(editForm.sizeE) || 0,
-        sizeM: parseFloat(editForm.sizeM) || 0,
-        productId: editForm.productId || null,
-        totalKgAlive,
-        deadOnTanks: 0,
-        rottenOnTanks: 0,
-      });
+      await axios.put(`/api/offload-records/${editRecord.id}`, payload);
       toast.success('Offload record updated successfully!');
       setShowEditModal(false);
       setEditRecord(null);
@@ -672,23 +698,22 @@ export function OffloadManagement() {
               <h3 className="mb-3">Live Lobster by Size</h3>
               {productSizes.length > 0 ? (
                 <div className={`grid gap-4 ${productSizes.length <= 4 ? 'grid-cols-4' : productSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
-                  {productSizes.map(size => {
-                    const fieldName = `size${size}` as keyof typeof formData;
+                  {productSizes.map((size, i) => {
+                    const key = fixedKeys[i] || 'U';
                     return (
                       <div key={size}>
                         <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
                         <input
                           type="number"
                           step="0.01"
-                          
-                          value={formData[fieldName]}
+                          value={sizes[key] || ''}
                           onChange={(e) => {
-                            setFormData({ ...formData, [fieldName]: e.target.value });
-                            if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
+                            setSizes({ ...sizes, [key]: e.target.value });
+                            if (errors[`size${key}`]) setErrors({ ...errors, [`size${key}`]: '' });
                           }}
-                          className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                          className={`w-full px-3 py-2 border rounded-lg ${errors[`size${key}`] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
                         />
-                        {errors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>}
+                        {errors[`size${key}`] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[`size${key}`]}</p>}
                       </div>
                     );
                   })}
@@ -1052,20 +1077,23 @@ export function OffloadManagement() {
                   <h3 className="mb-3">Live Lobster by Size</h3>
                   {editProductSizes.length > 0 ? (
                     <div className={`grid gap-4 ${editProductSizes.length <= 4 ? 'grid-cols-4' : editProductSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
-                      {editProductSizes.map(size => {
-                        const fieldName = `size${size}`;
+                      {editProductSizes.map((size, i) => {
+                        const key = fixedKeys[i] || 'U';
                         return (
                           <div key={size}>
                             <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
                             <input
                               type="number"
                               step="0.01"
-                              value={editForm[fieldName] || ''}
-                              onChange={e => handleEditChange(fieldName, e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg ${editErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`}
+                              value={editSizes[key] || ''}
+                              onChange={e => {
+                                setEditSizes({ ...editSizes, [key]: e.target.value });
+                                if (editErrors[`size${key}`]) setEditErrors({ ...editErrors, [`size${key}`]: '' });
+                              }}
+                              className={`w-full px-3 py-2 border rounded-lg ${editErrors[`size${key}`] ? 'border-red-500' : 'border-gray-300'}`}
                               disabled={isEditSubmitting}
                             />
-                            {editErrors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[fieldName]}</p>}
+                            {editErrors[`size${key}`] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[`size${key}`]}</p>}
                           </div>
                         );
                       })}
@@ -1200,9 +1228,14 @@ export function OffloadManagement() {
                 <h3 className="text-sm font-semibold mb-2">Live Lobster by Size</h3>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   {printSizes.length > 0 ? (
-                    printSizes.map(size => (
-                      <div key={size}><strong>Size {size}:</strong> {(printRecord as any)[`size${size}`]?.toFixed(2) || '0.00'} kg</div>
-                    ))
+                    printSizes.map(size => {
+                      const index = printSizes.indexOf(size);
+                      const fixedSizes = ['U', 'A', 'B', 'C', 'D', 'E', 'M'];
+                      const fixed = fixedSizes[index] || 'U';
+                      return (
+                        <div key={size}><strong>Size {size}:</strong> {getSizeValue(printRecord, fixed).toFixed(2)} kg</div>
+                      );
+                    })
                   ) : (
                     <div>No sizes available</div>
                   )}

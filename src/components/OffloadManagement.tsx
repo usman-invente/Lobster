@@ -285,6 +285,15 @@ export function OffloadManagement() {
 
     const totalKgAlive = Object.values(sizes).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
+    // Build payload with actual size names as keys
+    const sizesPayload: Record<string, any> = {};
+    productSizes.forEach((sizeName, index) => {
+      const key = fixedKeys[index] || 'U';
+      if (sizes[key]) {
+        sizesPayload[sizeName] = parseFloat(sizes[key]) || 0;
+      }
+    });
+
     // Build payload with dynamic sizes as JSON
     const payload: any = {
       boatName: formData.boatName,
@@ -297,7 +306,7 @@ export function OffloadManagement() {
       totalKgRotten: parseFloat(formData.totalKgRotten) || 0,
       totalLive: parseFloat(formData.totalLive) || 0,
       productId: formData.productId || null,
-      sizes: sizes,
+      sizes: sizesPayload,
       totalKgAlive,
       deadOnTanks: 0,
       rottenOnTanks: 0,
@@ -426,6 +435,15 @@ export function OffloadManagement() {
 
     const totalKgAlive = Object.values(editSizes).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
 
+    // Build payload with actual size names as keys
+    const sizesPayload: Record<string, any> = {};
+    editProductSizes.forEach((sizeName, index) => {
+      const key = fixedKeys[index] || 'U';
+      if (editSizes[key]) {
+        sizesPayload[sizeName] = parseFloat(editSizes[key]) || 0;
+      }
+    });
+
     // Build payload with dynamic sizes as JSON
     const payload: any = {
       boatName: editForm.boatName,
@@ -438,7 +456,7 @@ export function OffloadManagement() {
       totalKgRotten: parseFloat(editForm.totalKgRotten) || 0,
       totalLive: parseFloat(editForm.totalLive) || 0,
       productId: editForm.productId || null,
-      sizes: editSizes,
+      sizes: sizesPayload,
       totalKgAlive,
       deadOnTanks: 0,
       rottenOnTanks: 0,

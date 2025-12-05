@@ -392,7 +392,12 @@ export function OffloadManagement() {
 
   // Open print modal
   const handlePrintClick = (record: OffloadRecord) => {
-    setPrintRecord(record);
+    // Attach product data to the record
+    const recordWithProduct = {
+      ...record,
+      product: products.find(p => p.id === record.productId)
+    };
+    setPrintRecord(recordWithProduct);
     setShowPrintModal(true);
   };
 
@@ -713,7 +718,7 @@ export function OffloadManagement() {
             </div>
 
             <div className="border-t pt-4">
-              <h3 className="mb-3">Live Lobster by Size</h3>
+              <h3 className="mb-3">Live {products.find(p => p.id === formData.productId)?.name || 'Lobster'} by Size</h3>
               {productSizes.length > 0 ? (
                 <div className={`grid gap-4 ${productSizes.length <= 4 ? 'grid-cols-4' : productSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
                   {productSizes.map((size, i) => {
@@ -1092,7 +1097,7 @@ export function OffloadManagement() {
                   </div>
                 </div>
                 <div className="border-t pt-4">
-                  <h3 className="mb-3">Live Lobster by Size</h3>
+                  <h3 className="mb-3">Live {products.find(p => p.id === editForm.productId)?.name || 'Lobster'} by Size</h3>
                   {editProductSizes.length > 0 ? (
                     <div className={`grid gap-4 ${editProductSizes.length <= 4 ? 'grid-cols-4' : editProductSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
                       {editProductSizes.map((size, i) => {
@@ -1243,7 +1248,7 @@ export function OffloadManagement() {
 
               {/* Size Breakdown */}
               <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-2">Live Lobster by Size</h3>
+                <h3 className="text-sm font-semibold mb-2">Live {printRecord.product?.name || 'Lobster'} by Size</h3>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   {printSizes.length > 0 ? (
                     printSizes.map(size => {

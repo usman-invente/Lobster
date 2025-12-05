@@ -1217,7 +1217,7 @@ export function ReceivingManagement() {
                           return acc;
                         }, {});
                         return (
-                          <>
+                          <React.Fragment>
                             <tr className="bg-gray-100">
                               <td className="border border-gray-300 px-2 py-1 font-medium">Total Kg</td>
                               <td className="border border-gray-300 px-2 py-1 text-right font-bold text-blue-600">{totalKg.toFixed(2)} kg</td>
@@ -1232,7 +1232,7 @@ export function ReceivingManagement() {
                                 <td className="border border-gray-300 px-2 py-1 text-right">{sizeTotals[size].toFixed(2)} kg</td>
                               </tr>
                             ))}
-                          </>
+                          </React.Fragment>
                         );
                       })()}
                     </tbody>

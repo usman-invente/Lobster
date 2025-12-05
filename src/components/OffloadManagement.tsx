@@ -50,10 +50,13 @@ export function OffloadManagement() {
   // Print modal state
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printRecord, setPrintRecord] = useState<OffloadRecord | null>(null);
+  const [printSizes, setPrintSizes] = useState<string[]>([]);
 
   // Products state
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [productSizes, setProductSizes] = useState<string[]>([]);
+  const [editProductSizes, setEditProductSizes] = useState<string[]>([]);
 
   // Format date helper function
   const formatDate = (dateString: string) => {
@@ -126,7 +129,7 @@ export function OffloadManagement() {
   const fetchProducts = async () => {
     setIsProductsLoading(true);
     try {
-      const response = await axios.get('/api/products');
+      const response = await axios.get('/api/products?per_page=all&with=sizes');
       const records = response.data.data || [];
       setProducts(records);
     } catch (error) {
@@ -148,6 +151,48 @@ export function OffloadManagement() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Update productSizes when productId changes
+  useEffect(() => {
+    if (formData.productId && products.length > 0) {
+      const selectedProduct = products.find((p: any) => p.id == formData.productId);
+      if (selectedProduct && selectedProduct.sizes) {
+        setProductSizes(selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size));
+      } else {
+        setProductSizes([]);
+      }
+    } else {
+      setProductSizes([]);
+    }
+  }, [formData.productId, products]);
+
+  // Update editProductSizes when editForm.productId changes
+  useEffect(() => {
+    if (editForm.productId && products.length > 0) {
+      const selectedProduct = products.find((p: any) => p.id == editForm.productId);
+      if (selectedProduct && selectedProduct.sizes) {
+        setEditProductSizes(selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size));
+      } else {
+        setEditProductSizes([]);
+      }
+    } else {
+      setEditProductSizes([]);
+    }
+  }, [editForm.productId, products]);
+
+  // Update printSizes when printRecord changes
+  useEffect(() => {
+    if (printRecord && printRecord.productId && products.length > 0) {
+      const selectedProduct = products.find((p: any) => p.id == printRecord.productId);
+      if (selectedProduct && selectedProduct.sizes) {
+        setPrintSizes(selectedProduct.sizes.map((s: any) => typeof s === 'string' ? s : s.size));
+      } else {
+        setPrintSizes([]);
+      }
+    } else {
+      setPrintSizes([]);
+    }
+  }, [printRecord, products]);
 
   // Handle search with debounce
   useEffect(() => {
@@ -625,28 +670,32 @@ export function OffloadManagement() {
 
             <div className="border-t pt-4">
               <h3 className="mb-3">Live Lobster by Size</h3>
-              <div className="grid grid-cols-7 gap-4">
-                {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => {
-                  const fieldName = `size${size}` as keyof typeof formData;
-                  return (
-                    <div key={size}>
-                      <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        
-                        value={formData[fieldName]}
-                        onChange={(e) => {
-                          setFormData({ ...formData, [fieldName]: e.target.value });
-                          if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
-                        }}
-                        className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
-                      />
-                      {errors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>}
-                    </div>
-                  );
-                })}
-              </div>
+              {productSizes.length > 0 ? (
+                <div className={`grid gap-4 ${productSizes.length <= 4 ? 'grid-cols-4' : productSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
+                  {productSizes.map(size => {
+                    const fieldName = `size${size}` as keyof typeof formData;
+                    return (
+                      <div key={size}>
+                        <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          
+                          value={formData[fieldName]}
+                          onChange={(e) => {
+                            setFormData({ ...formData, [fieldName]: e.target.value });
+                            if (errors[fieldName]) setErrors({ ...errors, [fieldName]: '' });
+                          }}
+                          className={`w-full px-3 py-2 border rounded-lg ${errors[fieldName] ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}`}
+                        />
+                        {errors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{errors[fieldName]}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500">Select a product to view sizes</p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -1001,25 +1050,29 @@ export function OffloadManagement() {
                 </div>
                 <div className="border-t pt-4">
                   <h3 className="mb-3">Live Lobster by Size</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {(['U', 'A', 'B', 'C', 'D', 'E', 'M'] as const).map(size => {
-                      const fieldName = `size${size}`;
-                      return (
-                        <div key={size}>
-                          <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editForm[fieldName] || ''}
-                            onChange={e => handleEditChange(fieldName, e.target.value)}
-                            className={`w-full px-3 py-2 border rounded-lg ${editErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`}
-                            disabled={isEditSubmitting}
-                          />
-                          {editErrors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[fieldName]}</p>}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {editProductSizes.length > 0 ? (
+                    <div className={`grid gap-4 ${editProductSizes.length <= 4 ? 'grid-cols-4' : editProductSizes.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
+                      {editProductSizes.map(size => {
+                        const fieldName = `size${size}`;
+                        return (
+                          <div key={size}>
+                            <label className="block text-sm text-gray-600 mb-1">Size {size} (kg)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editForm[fieldName] || ''}
+                              onChange={e => handleEditChange(fieldName, e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg ${editErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`}
+                              disabled={isEditSubmitting}
+                            />
+                            {editErrors[fieldName] && <p className="text-red-600 text-sm mt-1 font-medium">{editErrors[fieldName]}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Select a product to view sizes</p>
+                  )}
                 </div>
               </form>
             </div>
@@ -1146,13 +1199,13 @@ export function OffloadManagement() {
               <div className="mb-4">
                 <h3 className="text-sm font-semibold mb-2">Live Lobster by Size</h3>
                 <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div><strong>Size U:</strong> {printRecord.sizeU.toFixed(2)} kg</div>
-                  <div><strong>Size A:</strong> {printRecord.sizeA.toFixed(2)} kg</div>
-                  <div><strong>Size B:</strong> {printRecord.sizeB.toFixed(2)} kg</div>
-                  <div><strong>Size C:</strong> {printRecord.sizeC.toFixed(2)} kg</div>
-                  <div><strong>Size D:</strong> {printRecord.sizeD.toFixed(2)} kg</div>
-                  <div><strong>Size E:</strong> {printRecord.sizeE.toFixed(2)} kg</div>
-                  <div><strong>Size M:</strong> {printRecord.sizeM.toFixed(2)} kg</div>
+                  {printSizes.length > 0 ? (
+                    printSizes.map(size => (
+                      <div key={size}><strong>Size {size}:</strong> {(printRecord as any)[`size${size}`]?.toFixed(2) || '0.00'} kg</div>
+                    ))
+                  ) : (
+                    <div>No sizes available</div>
+                  )}
                 </div>
               </div>
             </div>
